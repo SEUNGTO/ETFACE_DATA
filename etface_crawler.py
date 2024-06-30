@@ -265,9 +265,6 @@ class Main:
 
     def load_research(self):
         research = pd.read_sql('SELECT * FROM research', self.engine)
-        # url = 'https://raw.githubusercontent.com/SEUNGTO/ETFdata/main/research.json'
-        # response = requests.get(url).json()
-        # research = pd.DataFrame(response)
         return research
 
     def clear_old_research(self, research, period):
@@ -422,12 +419,9 @@ class Main:
         ewmdata.fillna(price_data, inplace=True)
         ewmdata.bfill(inplace=True)
 
-        ### ETF 데이터 불러오기
+        # ETF 데이터 불러오기
         etf_data = pd.read_sql('SELECT * FROM new_data', self.engine)
-        # url = 'https://raw.githubusercontent.com/SEUNGTO/ETFdata/main/new_data.json'
-        # response = requests.get(url)
-        # etf_data = pd.DataFrame(response.json())
-
+        
         # 종가를 저장할 데이터 프레임 만들어두기  ## 로드시간 최소화
         stock_mkt_price = pd.DataFrame({})
 
