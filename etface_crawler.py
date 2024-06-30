@@ -154,7 +154,7 @@ class Main:
         down_params = {'code': otp}
         response = requests.post(down_url, params=down_params, headers=headers)
 
-        data = pd.read_csv(io.BytesIO(response.content), encoding='euc-kr', dtype={'단축드': 'string'})
+        data = pd.read_csv(io.BytesIO(response.content), encoding='euc-kr', dtype={'단축코드': 'string'})
         _filter = (data['기초시장분류'] == '국내') & (data['기초자산분류'] == '주식')
         data = data[_filter]
 
