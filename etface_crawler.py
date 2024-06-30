@@ -331,8 +331,7 @@ class Main:
 
         return result
 
-    # 작업5 종목 목표가 구하기
-
+    # [작업5] 종목 목표가 구하기
     def calcurate_ewm(self, researchData):
         researchData['목표가'] = researchData['목표가'].fillna("")
         researchData['목표가'] = [re.sub("\D", "", v) for v in researchData['목표가']]
@@ -360,28 +359,6 @@ class Main:
 
     def calcurate_target_price(self, researchData):
         ewmdata = self.calcurate_ewm(researchData)
-        # researchData['목표가'] = researchData['목표가'].fillna("")
-        # researchData['목표가'] = [re.sub("\D", "", v) for v in researchData['목표가']]
-        # researchData = researchData[researchData['목표가'] != ""]
-        # researchData.loc[:, '게시일자'] = researchData['게시일자'].apply(lambda x: x.replace(".", ""))
-        # researchData.loc[:, '게시일자'] = pd.to_datetime(researchData.loc[:, '게시일자'])
-        # researchData.loc[:, '목표가'] = researchData.loc[:, '목표가'].astype(float)
-        #
-        # pivot = researchData.pivot_table(index='게시일자', columns='종목코드', values='목표가', aggfunc='mean')
-        # pivot = pivot.astype(float)
-        #
-        # start = researchData.loc[:, '게시일자'].min()
-        # end = researchData.loc[:, '게시일자'].max()
-        #
-        # period = pd.date_range(start=start, end=end, freq='D')
-        # bs_data = pd.DataFrame([], index=period)
-        # bs_data = bs_data.merge(pivot, left_index=True, right_index=True)
-        #
-        # ewmdata = bs_data.ewm(span=90, adjust=False).mean()
-        # ewmdata.index = ewmdata.index.astype(str)
-        # ewmdata.reset_index(inplace=True)
-        # ewmdata = ewmdata.rename(columns={'index': 'Date'})
-
         ewmdata = ewmdata.bfill()
         ewmdata = pd.melt(ewmdata, id_vars=['Date'])
         ewmdata.columns = ['Date', 'code', 'target']
@@ -395,7 +372,7 @@ class Main:
 
         return ewmdata
 
-    # [작업6] ETF 종목가 계산
+    # [작업6] ETF 목표가 계산
     def calcurate_etf_target_price(self, research):
 
         ewmdata = self.calcurate_ewm(research)
