@@ -32,14 +32,14 @@ class Main:
         print('[작업1] 코드 업데이트')
         self.code_list = self.update_code_list()
 
-        # # [작업2] 새 데이터
-        # print('[작업2] 새 데이터')
-        # self.krx_code = self.load_KRX_code()
-        # self.new_data = self.get_krx_etf_data(self.krx_code, self.new_date)
-        #
-        # # [작업3] 예전 데이터
-        # print('[작업3] 예전 데이터')
-        # self.old_data = self.get_krx_etf_data(self.krx_code, self.old_date)
+        # [작업2] 새 데이터
+        print('[작업2] 새 데이터')
+        self.krx_code = self.load_KRX_code()
+        self.new_data = self.get_krx_etf_data(self.krx_code, self.new_date)
+
+        # [작업3] 예전 데이터
+        print('[작업3] 예전 데이터')
+        self.old_data = self.get_krx_etf_data(self.krx_code, self.old_date)
 
         # [작업4] 리서치 데이터 업데이트
         print('[작업4] 리서치 데이터 업데이트')
