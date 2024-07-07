@@ -114,9 +114,6 @@ class Main:
     # 작업1 함수 : 코드 업데이트
     def update_code_list(self):
 
-        # stocks = fdr.StockListing('KRX')
-        # stocks = stocks.loc[:, ['Name', 'Code']]
-        # stocks.columns = ['Name', 'Symbol']
         stocks = self.load_KRX_code_Stock()
         stocks.loc[:, 'Type'] = 'Stock'
 
@@ -151,7 +148,7 @@ class Main:
         down_params = {'code': otp}
         response = requests.post(down_url, params=down_params, headers=headers)
         data = pd.read_csv(io.BytesIO(response.content), encoding='euc-kr', dtype={'단축코드': 'string'})
-        data = data[['단축코드', '한글 종목약명']]
+        data = data[['한글 종목약명', '단축코드']]
         data.columns = ['Name', 'Symbol']
     
         return data
