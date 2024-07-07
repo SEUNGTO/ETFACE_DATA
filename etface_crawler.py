@@ -114,9 +114,10 @@ class Main:
     # 작업1 함수 : 코드 업데이트
     def update_code_list(self):
 
-        stocks = fdr.StockListing('KRX')
-        stocks = stocks.loc[:, ['Name', 'Code']]
-        stocks.columns = ['Name', 'Symbol']
+        # stocks = fdr.StockListing('KRX')
+        # stocks = stocks.loc[:, ['Name', 'Code']]
+        # stocks.columns = ['Name', 'Symbol']
+        stocks = self.load_KRX_code_Stock()
         stocks.loc[:, 'Type'] = 'Stock'
 
         krx_code = self.load_KRX_code()
@@ -133,6 +134,27 @@ class Main:
         code_list.to_sql('code_list', self.engine, if_exists='replace', index=False)
 
         return code_list
+
+    def load_KRX_code_Stock(self):
+        otp_url = 'http://data.krx.co.kr/comm/fileDn/GenerateOTP/generate.cmd'
+        otp_params = {
+            'locale': 'ko_KR',
+            'mktId': 'ALL',
+            'share': '1',
+            'csvxls_isNo': 'false',
+            'name': 'fileDown',
+            'url': 'dbms/MDC/STAT/standard/MDCSTAT01901'
+        }
+        headers = {'Referer': 'http://data.krx.co.kr/contents/MDC/MDI/mdiLoader'}
+        otp = requests.post(otp_url, params=otp_params, headers=headers).text
+        down_url = 'http://data.krx.co.kr/comm/fileDn/download_csv/download.cmd'
+        down_params = {'code': otp}
+        response = requests.post(down_url, params=down_params, headers=headers)
+        data = pd.read_csv(io.BytesIO(response.content), encoding='euc-kr', dtype={'단축코드': 'string'})
+        data = data[['단축코드', '한글 종목약명']]
+        data.columns = ['Name', 'Symbol']
+    
+        return data
 
     # 작업2,3 함수 : KRX 데이터 크롤링
     def load_KRX_code(self):
