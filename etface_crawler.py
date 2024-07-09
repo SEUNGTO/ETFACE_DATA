@@ -30,32 +30,32 @@ class Main:
 
         # [작업1] 코드 업데이트
         print('[작업1] 코드 업데이트')
-        self.code_list = self.update_code_list()
+#        self.code_list = self.update_code_list()
 
         # [작업2] 새 데이터
         print('[작업2] 새 데이터')
-        self.krx_code = self.load_KRX_code()
-        self.new_data = self.get_krx_etf_data(self.krx_code, self.new_date)
+#        self.krx_code = self.load_KRX_code()
+#        self.new_data = self.get_krx_etf_data(self.krx_code, self.new_date)
 
         # [작업3] 예전 데이터
         print('[작업3] 예전 데이터')
-        self.old_data = self.get_krx_etf_data(self.krx_code, self.old_date)
+ #       self.old_data = self.get_krx_etf_data(self.krx_code, self.old_date)
 
         # [작업4] 리서치 데이터 업데이트
         print('[작업4] 리서치 데이터 업데이트')
-        self.research = self.update_research()
+#        self.research = self.update_research()
 
         # [작업5] 종목 목표가 계산
         print('[작업5] 종목 목표가 계산')
-        self.stock_target = self.calcurate_target_price(self.research)
+#        self.stock_target = self.calcurate_target_price(self.research)
 
         # [작업6] ETF 목표가 계산
         print('[작업6] ETF 목표가 계산')
-        self.etf_target = self.calcurate_etf_target_price(self.research)
+#        self.etf_target = self.calcurate_etf_target_price(self.research)
 
         # [작업7] 유사 종목 계산
         print('[작업7] 유사 종목 계산')
-        self.similar = self.compute_similarity()
+#        self.similar = self.compute_similarity()
 
         # [작업8] ETF 기본 테이블 생성
         print('[작업8] ETF 기본 테이블 생성')
