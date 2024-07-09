@@ -550,6 +550,7 @@ class Main:
         data.drop(['stock_name_y'], axis=1, inplace=True)
         data = data.rename(columns={'stock_name_x': 'stock_name'})
         data.fillna(0, inplace=True)
+        data['etf_name'] = data['etf_name'].astype(str)
 
         data = data[['etf_code', 'etf_name', 'stock_code', 'stock_name',
                      'recent_quantity', 'recent_amount', 'recent_ratio',
