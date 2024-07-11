@@ -143,7 +143,7 @@ class Main:
             'url': 'dbms/MDC/STAT/standard/MDCSTAT01901'
         }
         headers = {'Referer': 'http://data.krx.co.kr/contents/MDC/MDI/mdiLoader',
-                   'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
+                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
         otp = requests.post(otp_url, params=otp_params, headers=headers).text
         down_url = 'http://data.krx.co.kr/comm/fileDn/download_csv/download.cmd'
         down_params = {'code': otp}
@@ -151,7 +151,7 @@ class Main:
         data = pd.read_csv(io.BytesIO(response.content), encoding='euc-kr', dtype={'단축코드': 'string'})
         data = data[['한글 종목약명', '단축코드']]
         data.columns = ['Name', 'Symbol']
-    
+
         return data
 
     # 작업2,3 함수 : KRX 데이터 크롤링
@@ -168,7 +168,7 @@ class Main:
             'url': 'dbms/MDC/STAT/standard/MDCSTAT04601'
         }
         headers = {'Referer': 'http://data.krx.co.kr/contents/MDC/MDI/mdiLoader',
-               'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
+                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
 
         otp = requests.post(otp_url, params=otp_params, headers=headers).text
 
@@ -184,7 +184,7 @@ class Main:
 
     def get_PDF_data(self, isuCd, code, name, date):
         headers = {'Referer': 'http://data.krx.co.kr/contents/MDC/MDI/mdiLoader',
-               'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
+                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
         otp_url = 'http://data.krx.co.kr/comm/fileDn/GenerateOTP/generate.cmd'
         otp_params = {
             'locale': 'ko_KR',
@@ -221,7 +221,7 @@ class Main:
                 data.insert(0, 'ETF코드', code)
                 data = data.drop(['시가총액', '시가총액 구성비중'], axis=1)
                 data.loc[:, '비중'] = data['평가금액'] / data['평가금액'].sum() * 100
-                time.sleep(0.5)
+                time.sleep(np.random.rand())
 
             else:
                 tmp = self.get_PDF_data(isuCd, code, name, date)
@@ -229,7 +229,7 @@ class Main:
                 tmp = tmp.drop(['시가총액', '시가총액 구성비중'], axis=1)
                 tmp.loc[:, '비중'] = tmp['평가금액'] / tmp['평가금액'].sum() * 100
                 data = pd.concat([data, tmp])
-                time.sleep(0.5)
+                time.sleep(np.random.rand())
 
         data.columns = ['etf_code', 'stock_code', 'stock_nm', 'stock_amn', 'evl_amt', 'ratio']
         data.reset_index(drop=True)
@@ -266,7 +266,7 @@ class Main:
         new_research = pd.DataFrame([])
 
         for nid in range(int(_start_nid), int(_recent_nid) + 1):
-            time.sleep(0.5)
+            time.sleep(np.random.rand())
             nid = str(nid)
             try:
                 tmp = pd.DataFrame(self.researchCrawlling(nid))
@@ -421,7 +421,7 @@ class Main:
 
         # ETF 데이터 불러오기
         etf_data = pd.read_sql('SELECT * FROM new_data', self.engine)
-        
+
         # 종가를 저장할 데이터 프레임 만들어두기  ## 로드시간 최소화
         stock_mkt_price = pd.DataFrame({})
 
@@ -623,5 +623,4 @@ class Main:
 
 
 if __name__ == '__main__':
-
     app = Main()
