@@ -724,14 +724,15 @@ class Main:
             TradeReceivables = detail_fs['account_id'].str.contains('ifrs-full_CurrentTradeReceivables')  # 매출채권
 
             detail_fs = detail_fs[cash | inventory | CFO | Payables | TradeReceivables]
-            
+            detail_fs = detail_fs.drop('account_id', axis=1)
+
             z = pd.concat([simple_fs, detail_fs])
 
             z['stock_code'] = STOCK_CODE
             z['date'] = DATE
-            z = z[['stock_code', 'date', 'account_nm','account_id' , 'fs_div', 'sj_div', 'thstrm_amount']]
+            z = z[['stock_code', 'date', 'account_nm', 'fs_div', 'sj_div', 'thstrm_amount']]
 
-            z.columns = ['종목코드', '일자', '계정명','계정ID' ,'개별연결구분', '재무제표구분', '당기금액']
+            z.columns = ['종목코드', '일자', '계정명','개별연결구분', '재무제표구분', '당기금액']
 
             return z
 
@@ -813,7 +814,7 @@ class Main:
         fs_data['AmountPerShares'] = fs_data['당기금액'] / fs_data['Stocks']
 
         # 결과 저장
-        fs_data.columns = ['stock_code', 'date', 'account_name','account_id' ,'report_type', 'fs_type',
+        fs_data.columns = ['stock_code', 'date', 'account_name', 'report_type', 'fs_type',
                            'amount', 'shares', 'amount_per_share']
 
         fs_data.to_sql('stock_fs', app.engine, if_exists="replace", index=False,
@@ -821,14 +822,14 @@ class Main:
                            'stock_code': String(12),
                            'date': String(12),
                            'account_name': String(20),
-                           'account_name': String(50),
                            'report_type': String(5),
-                           'report_type': String(5),
+                           'fs_type': String(5),
                            'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                            'shares': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                            'amount_per_share': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126),
                                                                                 'oracle')
                        })
         return fs_data
+        
 if __name__ == '__main__':
     app = Main()
