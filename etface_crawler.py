@@ -708,23 +708,23 @@ class Main:
         simple_fs = self.get_items(CORP_CODE, YEAR, RPT_CODE)
 
         if simple_fs is not None:
-            fs_divs = pd.DataFrame(simple_fs)['fs_div'].unique()
+            # fs_divs = pd.DataFrame(simple_fs)['fs_div'].unique()
             detail_fs = pd.DataFrame({})
 
-            for FS_DIV in fs_divs:
-                tmp = self.get_detail_items(CORP_CODE, YEAR, RPT_CODE, FS_DIV)
-                if tmp is not None:
-                    tmp['fs_div'] = FS_DIV
-                    detail_fs = pd.concat([detail_fs, tmp])
-
-            cash = detail_fs['account_id'].str.contains('ifrs-full_CashAndCashEquivalents')  # 현금 및 현금성자산
-            inventory = detail_fs['account_id'].str.contains('ifrs-full_Inventories')  # 재고자산
-            CFO = detail_fs['account_id'].str.contains('ifrs-full_CashFlowsFromUsedInOperatingActivities')  # 영업활동현금흐름
-            Payables = detail_fs['account_id'].str.contains('ifrs-full_OtherCurrentPayables')  # 미지급금
-            TradeReceivables = detail_fs['account_id'].str.contains('ifrs-full_CurrentTradeReceivables')  # 매출채권
-
-            detail_fs = detail_fs[cash | inventory | CFO | Payables | TradeReceivables]
-            detail_fs = detail_fs.drop('account_id', axis=1)
+            # for FS_DIV in fs_divs:
+            #     tmp = self.get_detail_items(CORP_CODE, YEAR, RPT_CODE, FS_DIV)
+            #     if tmp is not None:
+            #         tmp['fs_div'] = FS_DIV
+            #         detail_fs = pd.concat([detail_fs, tmp])
+            #
+            # cash = detail_fs['account_id'].str.contains('ifrs-full_CashAndCashEquivalents')  # 현금 및 현금성자산
+            # inventory = detail_fs['account_id'].str.contains('ifrs-full_Inventories')  # 재고자산
+            # CFO = detail_fs['account_id'].str.contains('ifrs-full_CashFlowsFromUsedInOperatingActivities')  # 영업활동현금흐름
+            # Payables = detail_fs['account_id'].str.contains('ifrs-full_OtherCurrentPayables')  # 미지급금
+            # TradeReceivables = detail_fs['account_id'].str.contains('ifrs-full_CurrentTradeReceivables')  # 매출채권
+            #
+            # detail_fs = detail_fs[cash | inventory | CFO | Payables | TradeReceivables]
+            # detail_fs = detail_fs.drop('account_id', axis=1)
 
             z = pd.concat([simple_fs, detail_fs])
 
