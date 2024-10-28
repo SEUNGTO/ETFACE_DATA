@@ -817,7 +817,7 @@ class Main:
         fs_data.columns = ['stock_code', 'date', 'account_name', 'report_type', 'fs_type',
                            'amount', 'shares', 'amount_per_share']
 
-        fs_data.to_sql('stock_fs', app.engine, if_exists="replace", index=False,
+        fs_data.to_sql('stock_fs', self.engine, if_exists="replace", index=False,
                        dtype={
                            'stock_code': String(12),
                            'date': String(12),
