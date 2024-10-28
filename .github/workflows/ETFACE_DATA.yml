@@ -61,6 +61,7 @@ jobs:
         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         DB_DSN: ${{ secrets.DB_DSN }}
         DB_WALLET_PASSWORD: ${{ secrets.DB_WALLET_PASSWORD }}
+        DART_API_KEY : ${{ secrets.DART_API_KEY }}
 
       run: |
         python "etface_crawler.py"
