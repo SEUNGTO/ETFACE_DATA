@@ -1,4 +1,6 @@
 import io
+from io import BytesIO
+from xml.etree.ElementTree import parse
 import re
 import os
 import time
