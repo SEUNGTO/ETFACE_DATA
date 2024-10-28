@@ -65,6 +65,14 @@ class Main:
         print('[작업9] ETF 종목 세부사항 테이블 생성')
         self.etf_deposit_detail = self.make_etf_deposit_detail()
 
+        # [작업10] 재무제표 데이터
+        last_quarter = self.now - pd.offsets.QuarterEnd(1)
+        days = (self.now - last_quarter).days
+        if days <= 45 :
+            print("[작업10] 재무제표 데이터")
+
+            self.fs_data = self.get_DART_data()
+
     # +---------------------------+
     # |   함수 정의 영역            |
     # +---------------------------+
@@ -621,6 +629,205 @@ class Main:
                     })
         return data
 
+    # [작업10] 재무제표 데이터
+
+    def dart_codeListing(self):
+        url = 'https://opendart.fss.or.kr/api/corpCode.xml'
+        params = {'crtfc_key': os.environ.get('DART_API_KEY')}
+
+        response = requests.get(url, params=params).content
+
+        with zipfile.ZipFile(BytesIO(response)) as z:
+            z.extractall('corpCode')
+
+        xmlTree = parse(os.path.join(os.getcwd(), 'corpCode/CORPCODE.xml'))
+        root = xmlTree.getroot()
+        raw_list = root.findall('list')
+
+        corp_list = []
+
+        for i in range(0, len(raw_list)):
+            corp_code = raw_list[i].findtext('corp_code')
+            corp_name = raw_list[i].findtext('corp_name')
+            stock_code = raw_list[i].findtext('stock_code')
+
+            corp_list.append([corp_code, corp_name, stock_code])
+
+        return pd.DataFrame(corp_list, columns=['고유번호', '정식명칭', '종목코드'])
+
+    def get_items(self, CORP_CODE, YEAR, RPT_CODE):
+        url = 'https://opendart.fss.or.kr/api/fnlttSinglAcnt.json'
+        params = {
+            'crtfc_key': os.environ.get('DART_API_KEY'),
+            'corp_code': CORP_CODE,
+            'bsns_year': YEAR,
+            'reprt_code': RPT_CODE
+        }
+        response = requests.get(url, params=params)
+        result = response.json()
+        if result['status'] == '013':
+            return None
+
+        result = result['list']
+
+        # 데이터 기초 전처리
+        aa = pd.DataFrame(result)
+        cols = ['bsns_year', 'reprt_code', 'account_nm', 'fs_div', 'sj_div', 'thstrm_amount']
+        aa = aa[cols]
+
+        return aa
+
+    def get_detail_items(self, CORP_CODE, YEAR, RPT_CODE, FS_DIV):
+        url = 'https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json'
+        params = {
+            'crtfc_key': os.environ.get('DART_API_KEY'),
+            'corp_code': CORP_CODE,
+            'bsns_year': YEAR,
+            'reprt_code': RPT_CODE,
+            'fs_div': FS_DIV  ## 개별재무제표 : OFS, 연결재무제표 : CFS
+        }
+        response = requests.get(url, params=params)
+
+        result = response.json()
+
+        if result['status'] == '013':
+            return None
+
+        result = result['list']
+
+        bb = pd.DataFrame(result)
+        cols = ['bsns_year', 'reprt_code', 'account_nm', 'account_id', 'sj_div', 'thstrm_amount']
+        bb = bb[cols]
+
+        return bb
+
+    def get_financial_data(self, CORP_CODE, STOCK_CODE, YEAR, DATE, RPT_CODE):
+
+        simple_fs = self.get_items(CORP_CODE, YEAR, RPT_CODE)
+
+        if simple_fs is not None:
+            fs_divs = pd.DataFrame(simple_fs)['fs_div'].unique()
+            detail_fs = pd.DataFrame({})
+
+            for FS_DIV in fs_divs:
+                tmp = self.get_detail_items(CORP_CODE, YEAR, RPT_CODE, FS_DIV)
+                if tmp is not None:
+                    tmp['fs_div'] = FS_DIV
+                    detail_fs = pd.concat([detail_fs, tmp])
+
+            cash = detail_fs['account_id'].str.contains('ifrs-full_CashAndCashEquivalents')  # 현금 및 현금성자산
+            inventory = detail_fs['account_id'].str.contains('ifrs-full_Inventories')  # 재고자산
+            CFO = detail_fs['account_id'].str.contains('ifrs-full_CashFlowsFromUsedInOperatingActivities')  # 영업활동현금흐름
+            Payables = detail_fs['account_id'].str.contains('ifrs-full_OtherCurrentPayables')  # 미지급금
+            TradeReceivables = detail_fs['account_id'].str.contains('ifrs-full_CurrentTradeReceivables')  # 매출채권
+
+            detail_fs = detail_fs[cash | inventory | CFO | Payables | TradeReceivables]
+            detail_fs = detail_fs.drop('account_id', axis=1)
+
+            z = pd.concat([simple_fs, detail_fs])
+
+            z['stock_code'] = STOCK_CODE
+            z['date'] = DATE
+            z = z[['stock_code', 'date', 'account_nm', 'fs_div', 'sj_div', 'thstrm_amount']]
+
+            z.columns = ['종목코드', '일자', '계정명', '개별연결구분', '재무제표구분', '당기금액']
+
+            return z
+
+    def find_report_code(self, quarter) :
+        REPORT_CODE_LIST = ['11013', '11012', '11014', '11011']
+        YEAR = str(quarter.year)
+        DATE = quarter.strftime('%Y-%m-%d')
+        REPORT_CODE = REPORT_CODE_LIST[quarter.quarter-1]
+
+        return YEAR, DATE, REPORT_CODE
+
+    def convert_str_to_float(self, num) :
+        num = str(num).replace(",", "")
+        if len(num) > 1 :
+            return float(num)
+        else :
+            return 0
+
+    def get_DART_data(self):
+
+        dart_code_list = self.dart_codeListing()
+        stock = self.load_KRX_code_Stock()
+        krx_firm_list = dart_code_list[dart_code_list['종목코드'] != " "].reset_index(drop=True)
+        krx_firm_list = krx_firm_list[krx_firm_list['종목코드'].isin(stock['Symbol'])]
+
+        fs_data = pd.DataFrame({})
+
+        i = 0
+
+        for CORP_CODE, STOCK_CODE in zip(krx_firm_list['고유번호'], krx_firm_list['종목코드']):
+            if i == 10 :
+                break
+            else :
+                i += 1
+
+            try:
+
+                quarter_ago = 1
+                quarter = self.now + pd.offsets.QuarterEnd(-(quarter_ago + 1))
+                YEAR, DATE, REPORT_CODE = self.find_report_code(quarter)
+
+                tmp = self.get_financial_data(CORP_CODE, STOCK_CODE, YEAR, DATE, REPORT_CODE)
+
+                if tmp is None:
+                    while quarter_ago < 5:
+                        quarter_ago += 1
+                        quarter = self.now + pd.offsets.QuarterEnd(-(quarter_ago + 1))
+                        YEAR, DATE, REPORT_CODE = self.find_report_code(quarter)
+
+                        tmp = self.get_financial_data(CORP_CODE, STOCK_CODE, YEAR, DATE, REPORT_CODE)
+
+                        if tmp is not None:
+                            break
+
+                fs_data = pd.concat([fs_data, tmp])
+                time.sleep(0.2)
+
+            except:
+                continue
+
+
+        fs_data['당기금액'] = fs_data['당기금액'].apply(lambda x: self.convert_str_to_float(x))
+
+        stocks = fdr.StockListing("KRX") # Git Action용
+        # stocks = pd.read_excel("../stocks.xlsx") # 로컬환경용
+
+        fs_data = fs_data.set_index('종목코드').join(stocks.set_index('Code')[['Stocks']])
+
+        # 주당 FS금액 구하기
+        """
+        2024. 10. 28.
+        분기 IS 데이터 -> 연도말로 추정(곱하기 4). 추후에 보완 필요
+        연말 사업보고서를 낸 경우 -> 성장률 반영. 현재는 0%. 추후 보완 필요
+        """
+        fs_data = fs_data.reset_index()
+        ann_idx = fs_data['일자'].str.contains('12-31')
+        bs_idx = fs_data['재무제표구분'] == "BS"
+        fs_data.loc[(~ann_idx) & (~bs_idx), '당기금액'] = fs_data.loc[(~ann_idx) & (~bs_idx), '당기금액'] * 4
+        fs_data.loc[(~ann_idx) & (~bs_idx), '당기금액'] = fs_data.loc[(~ann_idx) & (~bs_idx), '당기금액'] * 4
+        fs_data['AmountPerShares'] = fs_data['당기금액'] / fs_data['Stocks']
+
+        # 결과 저장
+        fs_data.columns = ['stock_code', 'date', 'account_name', 'report_type', 'fs_type',
+                           'amount', 'shares', 'amount_per_share']
+
+        fs_data.to_sql('stock_fs', app.engine, if_exists="replace", index=False,
+                       dtype={
+                           'stock_code': String(12),
+                           'date': String(12),
+                           'account_name': String(20),
+                           'report_type': String(5),
+                           'report_type': String(5),
+                           'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                           'shares': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                           'amount_per_share': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126),
+                                                                                'oracle')
+                       })
 
 if __name__ == '__main__':
     app = Main()
