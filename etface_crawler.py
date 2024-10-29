@@ -708,9 +708,17 @@ class Main:
         simple_fs = self.get_items(CORP_CODE, YEAR, RPT_CODE)
 
         if simple_fs is not None:
-            # fs_divs = pd.DataFrame(simple_fs)['fs_div'].unique()
             detail_fs = pd.DataFrame({})
 
+            """
+            2024. 10. 29.
+            추후에 재무제표의 세부내용까지 담아서 업데이트 필요
+            현재 account_id로 데이터를 선별하고 있으나,
+            동일한 account_id에도 account_name이 상이한 경우들이 많아 통일이 되지 않음
+            재무제표의 코드표를 동일하게 작성한 코드테이블 정의 필요함
+            """
+            
+            # fs_divs = pd.DataFrame(simple_fs)['fs_div'].unique()
             # for FS_DIV in fs_divs:
             #     tmp = self.get_detail_items(CORP_CODE, YEAR, RPT_CODE, FS_DIV)
             #     if tmp is not None:
@@ -760,13 +768,7 @@ class Main:
 
         fs_data = pd.DataFrame({})
 
-        i = 0
-
         for CORP_CODE, STOCK_CODE in zip(krx_firm_list['고유번호'], krx_firm_list['종목코드']):
-            if i == 10 :
-                break
-            else :
-                i += 1
 
             try:
 
