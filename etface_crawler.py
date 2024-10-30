@@ -22,6 +22,11 @@ from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 
 class Main:
     def __init__(self):
+
+        user=os.environ.get('DB_USER')
+        password=os.environ.get('DB_PASSWORD')
+        print(user, password)
+
         self.tz = pytz.timezone('Asia/Seoul')
         self.now = datetime.now(self.tz)
         self.new_date = self.now.strftime('%Y%m%d')
