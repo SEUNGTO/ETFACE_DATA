@@ -27,58 +27,58 @@ class Main:
         password=os.environ.get('DB_PASSWORD')
         print(user, password)
 
-        self.tz = pytz.timezone('Asia/Seoul')
-        self.now = datetime.now(self.tz)
-        self.new_date = self.now.strftime('%Y%m%d')
-        self.old_date = (self.now - timedelta(days=7)).strftime('%Y%m%d')
+        # self.tz = pytz.timezone('Asia/Seoul')
+        # self.now = datetime.now(self.tz)
+        # self.new_date = self.now.strftime('%Y%m%d')
+        # self.old_date = (self.now - timedelta(days=7)).strftime('%Y%m%d')
 
-        # DB 연결
-        self.engine = self.create_db_engine()
+        # # DB 연결
+        # self.engine = self.create_db_engine()
 
-        # [작업1] 코드 업데이트
-        print('[작업1] 코드 업데이트')
-        self.code_list = self.update_code_list()
+        # # [작업1] 코드 업데이트
+        # print('[작업1] 코드 업데이트')
+        # self.code_list = self.update_code_list()
 
-        # [작업2] 새 데이터
-        print('[작업2] 새 데이터')
-        self.krx_code = self.load_KRX_code()
-        self.new_data = self.get_krx_etf_data(self.krx_code, self.new_date)
+        # # [작업2] 새 데이터
+        # print('[작업2] 새 데이터')
+        # self.krx_code = self.load_KRX_code()
+        # self.new_data = self.get_krx_etf_data(self.krx_code, self.new_date)
 
-        # [작업3] 예전 데이터
-        print('[작업3] 예전 데이터')
-        self.old_data = self.get_krx_etf_data(self.krx_code, self.old_date)
+        # # [작업3] 예전 데이터
+        # print('[작업3] 예전 데이터')
+        # self.old_data = self.get_krx_etf_data(self.krx_code, self.old_date)
 
-        # [작업4] 리서치 데이터 업데이트
-        print('[작업4] 리서치 데이터 업데이트')
-        self.research = self.update_research()
+        # # [작업4] 리서치 데이터 업데이트
+        # print('[작업4] 리서치 데이터 업데이트')
+        # self.research = self.update_research()
 
-        # [작업5] 종목 목표가 계산
-        print('[작업5] 종목 목표가 계산')
-        self.stock_target = self.calcurate_target_price(self.research)
+        # # [작업5] 종목 목표가 계산
+        # print('[작업5] 종목 목표가 계산')
+        # self.stock_target = self.calcurate_target_price(self.research)
 
-        # [작업6] ETF 목표가 계산
-        print('[작업6] ETF 목표가 계산')
-        self.etf_target = self.calcurate_etf_target_price(self.research)
+        # # [작업6] ETF 목표가 계산
+        # print('[작업6] ETF 목표가 계산')
+        # self.etf_target = self.calcurate_etf_target_price(self.research)
 
-        # [작업7] 유사 종목 계산
-        print('[작업7] 유사 종목 계산')
-        self.similar = self.compute_similarity()
+        # # [작업7] 유사 종목 계산
+        # print('[작업7] 유사 종목 계산')
+        # self.similar = self.compute_similarity()
 
-        # [작업8] ETF 기본 테이블 생성
-        print('[작업8] ETF 기본 테이블 생성')
-        self.etf_base_table = self.make_etf_base_table()
+        # # [작업8] ETF 기본 테이블 생성
+        # print('[작업8] ETF 기본 테이블 생성')
+        # self.etf_base_table = self.make_etf_base_table()
 
-        # [작업9] ETF 종목 세부사항 테이블 생성
-        print('[작업9] ETF 종목 세부사항 테이블 생성')
-        self.etf_deposit_detail = self.make_etf_deposit_detail()
+        # # [작업9] ETF 종목 세부사항 테이블 생성
+        # print('[작업9] ETF 종목 세부사항 테이블 생성')
+        # self.etf_deposit_detail = self.make_etf_deposit_detail()
 
-        # [작업10] 재무제표 데이터
-        last_quarter = self.now - pd.offsets.QuarterEnd(1)
-        days = (self.now - last_quarter).days
-        if days <= 45 :
-            print("[작업10] 재무제표 데이터")
+        # # [작업10] 재무제표 데이터
+        # last_quarter = self.now - pd.offsets.QuarterEnd(1)
+        # days = (self.now - last_quarter).days
+        # if days <= 45 :
+        #     print("[작업10] 재무제표 데이터")
 
-            self.fs_data = self.get_DART_data()
+        #     self.fs_data = self.get_DART_data()
 
     # +---------------------------+
     # |   함수 정의 영역            |
