@@ -1,0 +1,13 @@
+# DB connector
+key
+Wallet_appdb.zip
+
+# local files
+*.txt
+*.xlsx
+*.xls
+*.csv
+*.xml
+
+# Pycharm environment file
+.idea
