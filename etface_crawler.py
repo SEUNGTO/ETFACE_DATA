@@ -1,4 +1,3 @@
-import pdb
 import io
 from io import BytesIO
 from xml.etree.ElementTree import parse
@@ -836,5 +835,3 @@ class Main:
         
 if __name__ == '__main__':
     app = Main()
-
-    pdb.set_trace()

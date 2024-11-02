@@ -7,3 +7,7 @@ Wallet_appdb.zip
 *.xlsx
 *.xls
 *.csv
+*.xml
+
+# Pycharm environment file
+.idea
