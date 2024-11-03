@@ -10,8 +10,6 @@ from sqlalchemy import create_engine
 from sqlalchemy import String, Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 
-
-
 def create_db_engine():
     STORAGE_NAME = os.environ.get('STORAGE_NAME')
     WALLET_FILE = os.environ.get('WALLET_FILE')
@@ -55,10 +53,83 @@ def create_db_engine():
 
     return engine
 
+def choose_report_type(fs) :
+    report_types = fs['report_type'].unique()
+    if len(report_types) == 1 :
+        return fs
+    else :
+        return fs.loc[fs['report_type'] == 'CFS', :]
+
+def clean_account_name(fs) :
+
+    NI = '당기순이익' # Net Income
+    OP = '영업이익' # Opearating Profit
+
+    fs.loc[fs['account_name'].str.contains(NI), 'account_name'] = NI
+    fs.loc[fs['account_name'].str.contains(OP), 'account_name'] = OP
+
+    return fs.drop_duplicates()
+
+def clean_fs(fs) :
+
+    data = pd.DataFrame({
+        'account_name': ['유동자산', '비유동자산', '자산총계',
+                         '유동부채', '비유동부채', '부채총계',
+                         '자본금', '이익잉여금', '자본총계',
+                         '매출액', '영업이익', '법인세차감전 순이익', '당기순이익']
+    }).set_index('account_name')
+    fs.set_index('account_name', inplace = True)
+
+
+    data = data.join(fs)
+    col = ['stock_code', 'date', 'report_type', 'fs_type', 'shares']
+    data[col] = data[col].ffill()
+    data[col] = data[col].bfill()
+
+    return data
+
+def standardize_fs(fs) :
+
+    """
+    재무제표를 데이터화 하는 함수
+    금융기업은 제외함(금융기업의 경우 유동성 기준 재무제표가 아니므로 '유동자산'계정이 기표되지 않음을 이용)
+    """
+
+    if '유동자산' in fs['account_name'].tolist() :
+
+        data = choose_report_type(fs)
+        data = clean_account_name(data)
+        data = clean_fs(data)
+
+        return data
 
 if __name__ == "__main__" :
 
     db = create_db_engine()
     data = pd.read_sql("SELECT * FROM STOCK_FS", con = db)
 
-    pdb.set_trace()
+    result = pd.DataFrame({})
+    stock_code_list = data['stock_code'].unique()
+
+    for stock_code in stock_code_list :
+
+        fs = data[data['stock_code'] == stock_code]
+
+        if fs is not None :
+            print(stock_code, end = "\r")
+            fs = standardize_fs(fs)
+            result = pd.concat([result, fs])
+
+    result.reset_index(inplace = True)
+    result.to_sql('stock_fs', con = db, if_exists="replace", index=False,
+                    dtype={
+                        'stock_code': String(12),
+                        'date': String(12),
+                        'account_name': String(20),
+                        'report_type': String(5),
+                        'fs_type': String(5),
+                        'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                        'shares': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                        'amount_per_share': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126),
+                                                                            'oracle')
+                       })
