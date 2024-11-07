@@ -69,12 +69,12 @@ class Main:
         self.etf_deposit_detail = self.make_etf_deposit_detail()
 
         # [작업10] 재무제표 데이터
-        last_quarter = self.now - pd.offsets.QuarterEnd(1)
-        days = (self.now - last_quarter).days
-        if days <= 45 :
-            print("[작업10] 재무제표 데이터")
+        # last_quarter = self.now - pd.offsets.QuarterEnd(1)
+        # days = (self.now - last_quarter).days
+        # if days <= 45 :
+        #     print("[작업10] 재무제표 데이터")
 
-            self.fs_data = self.get_DART_data()
+        #     self.fs_data = self.get_DART_data()
 
     # +---------------------------+
     # |   함수 정의 영역            |
