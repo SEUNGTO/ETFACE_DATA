@@ -11,3 +11,9 @@ Wallet_appdb.zip
 
 # Pycharm environment file
 .idea
+
+# Dart files
+corpCode/*
+
+
+make_fs.py
