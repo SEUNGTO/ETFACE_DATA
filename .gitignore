@@ -8,7 +8,6 @@ Wallet_appdb.zip
 *.xls
 *.csv
 *.xml
-*.ipynb
 
 # Pycharm environment file
 .idea
