@@ -34,8 +34,10 @@ def dart_codeListing():
 
 if __name__ == '__main__' : 
 
-    # if not os.path.exists('corpCode') :
-    print('DART 코드 리스팅')
-    dart_code_list = dart_codeListing()
-    dart_code_list = dart_code_list.loc[dart_code_list['종목코드'] != " ", :]
-    dart_code_list.reset_index().to_json('dart_code_list.json')
+    if not os.path.exists('data') :
+        os.makedirs('data')
+
+    if not os.path.exists('corpCode') :
+        dart_code_list = dart_codeListing()
+        dart_code_list = dart_code_list.loc[dart_code_list['종목코드'] != " ", :]
+        dart_code_list.reset_index().to_json('data/dart_code_list.json')
