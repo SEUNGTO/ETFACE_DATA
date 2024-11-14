@@ -94,7 +94,35 @@ def filter_bs_account(fs_data) :
     return data
 
 def filter_pl_account(fs_data) :
-    return pd.DataFrame()
+
+    # 매출액
+    revenue = fs_data['account_id'] == 'ifrs-full_Revenue'
+    df1 = fs_data[revenue]
+    if 'CIS' in df1['sj_div'] :
+        df1 = df1.loc[df1['sj_div'] == 'CIS', :]
+
+    # 영업이익
+    operating_income = (
+        fs_data['account_id'].str.contains('ifrs-full_ProfitLossFromOperatingActivities') |
+        fs_data['account_id'].str.contains('dart_OperatingIncomeLoss')
+    )
+    if len(fs_data[operating_income]) > 1 :
+        operating_income = fs_data['account_id'].str.contains('ifrs-full_ProfitLossFromOperatingActivities')
+    
+    df2 = fs_data[operating_income]
+    if 'CIS' in df1['sj_div'] :
+        df2 = df2.loc[df2['sj_div'] == 'CIS', :]
+
+    # 당기순이익
+    net_income = (fs_data['sj_div'] == 'CIS') & (
+        fs_data['account_id'] == 'ifrs-full_ProfitLoss'
+        )
+    df3 = fs_data[net_income]
+
+    data = pd.concat([df1, df2, df3])
+    data['account_nm_kor'] = ['매출액', '영업이익', '당기순이익']
+    
+    return data
 
 
 if __name__ == "__main__" :
@@ -113,9 +141,9 @@ if __name__ == "__main__" :
         corp_code, stock_name, stock_code = v
 
         tmp = fs_all.loc[fs_all['corp_code'] == corp_code, :]
-        bs = filter_bs_account(tmp)
-        pl = filter_pl_account(tmp)
-        tmp = pd.concat([bs, pl])
+        balance_sheet = filter_bs_account(tmp)
+        income_statement = filter_pl_account(tmp)
+        tmp = pd.concat([balance_sheet, income_statement])
 
         data = pd.concat([data, tmp])
     else :
