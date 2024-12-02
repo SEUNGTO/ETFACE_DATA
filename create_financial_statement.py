@@ -1,12 +1,18 @@
 import pdb
-import pandas as pd
+import os
 import requests
 import zipfile
+import pandas as pd
 from xml.etree.ElementTree import parse
 from io import BytesIO
-import time
-import os
 from tqdm import tqdm
+from sqlalchemy import create_engine
+from sqlalchemy import String, Float
+from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
+from google.cloud import storage
+from google.oauth2.service_account import Credentials
+import oracledb
+import FinanceDataReader as fdr
 
 def dart_codeListing():
     """
@@ -45,14 +51,12 @@ def dart_codeListing():
     # JSON 파일로 저장
     dart_code_list.to_json('data/dart_code_list.json')
 
-
 def fetch_dart_code() :
     url = 'https://raw.githubusercontent.com/SEUNGTO/ETFACE_DATA/refs/heads/main/data/etf_fs_target_company.json'
     dart_code_list = requests.get(url).json()
     dart_code_list = pd.DataFrame(dart_code_list)
 
     return dart_code_list
-
 
 def fetch_finance_account(CORP_CODE, YEAR, REPRT_CODE, FS_DIV) :
 
@@ -192,10 +196,55 @@ def filter_pl_account(fs_data) :
     
     return data
 
+def create_db_engine():
+    STORAGE_NAME = os.environ.get('STORAGE_NAME')
+    WALLET_FILE = os.environ.get('WALLET_FILE')
 
+    test = {
+        "type": os.environ.get('GCP_TYPE'),
+        "project_id": os.environ.get('GCP_PROJECT_ID'),
+        "private_key_id": os.environ.get('GCP_PRIVATE_KEY_ID'),
+        "private_key": os.environ.get('GCP_PRIVATE_KEY').replace('\\n', '\n'),
+        "client_email": os.environ.get('GCP_CLIENT_EMAIL'),
+        "client_id": os.environ.get('GCP_CLIENT_ID'),
+        "auth_uri": os.environ.get('GCP_AUTH_URI'),
+        "token_uri": os.environ.get('GCP_TOKEN_URI'),
+        "auth_provider_x509_cert_url": os.environ.get('GCP_PROVIDER_URL'),
+        "client_x509_cert_url": os.environ.get('GCP_CLIENT_URL'),
+        "universe_domain": os.environ.get('GCP_UNIV_DOMAIN')
+    }
+
+    credentials = Credentials.from_service_account_info(test)
+    client = storage.Client(credentials=credentials)
+    bucket = client.get_bucket(STORAGE_NAME)
+    blob = bucket.get_blob(WALLET_FILE)
+    blob.download_to_filename(WALLET_FILE)
+
+    zip_file_path = os.path.join(os.getcwd(), WALLET_FILE)
+    wallet_location = os.path.join(os.getcwd(), 'key')
+    os.makedirs(wallet_location, exist_ok=True)
+
+    with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+        zip_ref.extractall(wallet_location)
+
+    connection = oracledb.connect(
+        user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASSWORD'),
+        dsn=os.environ.get('DB_DSN'),
+        config_dir=wallet_location,
+        wallet_location=wallet_location,
+        wallet_password=os.environ.get('DB_WALLET_PASSWORD'))
+
+    engine = create_engine('oracle+oracledb://', creator=lambda: connection)
+
+    return engine
 
 
 if __name__ == '__main__' : 
+    
+    # engine = create_db_engine()
+    # test = pd.read_sql('fs_data', con=engine)
+    # pdb.set_trace()
 
     # dart_codeListing()
     dart_code_list = fetch_dart_code()
@@ -237,6 +286,29 @@ if __name__ == '__main__' :
             error_list.append(f'{CORP_CODE}_ERROR')
         
     else :
-        data.reset_index(drop=True).to_excel('data/fs-account.xlsx', index = False)
-        pd.DataFrame({'corp_code' : error_list}).to_excel('data/error_list.xlsx', index = False)
-    
+
+        data = data.set_index('corp_code').join(dart_code_list.set_index('고유번호'), how = 'inner')
+        stocks = fdr.StockListing('KRX')
+        data = data.reset_index().set_index('종목코드').join(stocks.set_index('Code').loc[:, ['Stocks']], how = 'inner')
+        
+        data.reset_index(inplace = True)
+        data = data.loc[:, ['종목코드', 'account_nm_kor', 'thstrm_amount', 'Stocks']]
+
+        data['thstrm_amount'] = data['thstrm_amount'].str.replace(",", "")
+        data['thstrm_amount'] = [amt if amt != "" else None for amt in data['thstrm_amount']]
+        data['thstrm_amount'] = data['thstrm_amount'].astype(float)
+        data['amount_per_share'] = data['thstrm_amount'] / data['Stocks']
+
+        data = data.loc[:, ['종목코드', 'account_nm_kor', 'thstrm_amount', 'Stocks', 'amount_per_share']]
+        data.columns = ['stock_code', 'account_name', 'amount', 'stocks','acmount_per_share']
+
+        # DB 저장
+        engine = create_db_engine()
+        data.to_sql('fs_data', con = engine, if_exists='replace', index= False,
+                    dtype = {
+                        'stock_code': String(12),
+                        'account_name': String(50),
+                        'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                        'stocks': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                        'acmount_per_share': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle')
+                    })
