@@ -334,25 +334,29 @@ class Main:
             'researcher': [],
             'link': []
         }
-
+    
         link = f'https://m.stock.naver.com/investment/research/company/{nid}'
         response = requests.get(link)
         soup = BeautifulSoup(response.content, 'html.parser')
-        body = soup.find('div', class_='ResearchContent_article__jjmeq')
-
-        info = body.find('div', class_='HeaderResearch_article__j3dPb')
-        code = info.find('em', class_='HeaderResearch_code__RmsRt').text
-        stock_name = info.find('em', class_='HeaderResearch_tag__7owlF').text
+        body = soup.find('div', {'class' : re.compile('ResearchContent_article')})
+    
+        if not body :
+            raise ValueError
+    
+    
+        info = body.find('div', {'class' : re.compile('HeaderResearch_article')})
+        code = info.find('em', {'class' : re.compile('HeaderResearch_code')}).text
+        stock_name = info.find('em', {'class' : re.compile('HeaderResearch_tag')}).text
         stock_name = stock_name.replace(code, "")
-        title = info.find('h3', class_='HeaderResearch_title__cnBST').text
-        researcher = info.find('cite', class_='HeaderResearch_description__qH6Bs').text
-        date = info.find('time', class_='HeaderResearch_description__qH6Bs').text
-
-        consensus = body.find('div', class_='ResearchConsensus_article__YZ7oY')
-        consensus = consensus.find_all('span', class_='ResearchConsensus_text__XNJAT')
+        title = info.find('h3',{'class' : re.compile('HeaderResearch_title')}).text
+        researcher = info.find('cite', {'class' : re.compile('HeaderResearch_description')}).text
+        date = info.find('time', {'class' : re.compile('HeaderResearch_description')}).text
+    
+        consensus = body.find('div', {'class' : re.compile('ResearchConsensus_article')})
+        consensus = consensus.find_all('span', {'class' : re.compile('ResearchConsensus_text')})
         opinion = consensus[0].text
         target_price = re.sub("\D", "", consensus[1].text)
-
+    
         result['stock_name'].append(stock_name)
         result['code'].append(code)
         result['title'].append(title)
