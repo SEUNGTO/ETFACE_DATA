@@ -1,3 +1,4 @@
+import pdb
 import io
 from io import BytesIO
 from xml.etree.ElementTree import parse
@@ -29,6 +30,8 @@ class Main:
 
         # DB 연결
         self.engine = self.create_db_engine()
+        data = pd.read_sql("select * from research", con = self.engine)
+        pdb.set_trace()
 
         # [작업1] 코드 업데이트
         print('[작업1] 코드 업데이트')
@@ -76,7 +79,7 @@ class Main:
         #     self.fs_data = self.get_DART_data()
 
     # +---------------------------+
-    # |   함수 정의 영역            |
+    # |   함수 정의 영역           |
     # +---------------------------+
     def create_db_engine(self):
         STORAGE_NAME = os.environ.get('STORAGE_NAME')
@@ -292,6 +295,7 @@ class Main:
         research = research.reset_index(drop=True)
 
         # DB 업데이트
+        research = research.drop_duplicates()
         research.to_sql('research', self.engine, if_exists='replace', index=False)
 
         return research
@@ -337,18 +341,18 @@ class Main:
         link = f'https://m.stock.naver.com/investment/research/company/{nid}'
         response = requests.get(link)
         soup = BeautifulSoup(response.content, 'html.parser')
-        body = soup.find('div', class_='ResearchContent_article__jjmeq')
+        body = soup.find('div', {'class' : re.compile('ResearchContent_article')})
 
-        info = body.find('div', class_='HeaderResearch_article__j3dPb')
-        code = info.find('em', class_='HeaderResearch_code__RmsRt').text
-        stock_name = info.find('em', class_='HeaderResearch_tag__7owlF').text
+        info = body.find('div', {'class' : re.compile('HeaderResearch_article')})
+        code = info.find('em', {'class' : re.compile('HeaderResearch_code')}).text
+        stock_name = info.find('em', {'class' : re.compile('HeaderResearch_tag')}).text
         stock_name = stock_name.replace(code, "")
-        title = info.find('h3', class_='HeaderResearch_title__cnBST').text
-        researcher = info.find('cite', class_='HeaderResearch_description__qH6Bs').text
-        date = info.find('time', class_='HeaderResearch_description__qH6Bs').text
+        title = info.find('h3', {'class' : re.compile('HeaderResearch_title')}).text
+        researcher = info.find('cite', {'class' : re.compile('HeaderResearch_description')}).text
+        date = info.find('time', {'class' : re.compile('HeaderResearch_description')}).text
 
-        consensus = body.find('div', class_='ResearchConsensus_article__YZ7oY')
-        consensus = consensus.find_all('span', class_='ResearchConsensus_text__XNJAT')
+        consensus = body.find('div', {'class' : re.compile('ResearchConsensus_article')})
+        consensus = consensus.find_all('span', {'class' : re.compile('ResearchConsensus_text')})
         opinion = consensus[0].text
         target_price = re.sub("\D", "", consensus[1].text)
 
