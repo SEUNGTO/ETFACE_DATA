@@ -31,18 +31,18 @@ class Main:
         # DB 연결
         self.engine = self.create_db_engine()
 
-        # [작업1] 코드 업데이트
-        print('[작업1] 코드 업데이트')
-        self.code_list = self.update_code_list()
+        # # [작업1] 코드 업데이트
+        # print('[작업1] 코드 업데이트')
+        # self.code_list = self.update_code_list()
 
-        # [작업2] 새 데이터
-        print('[작업2] 새 데이터')
-        self.krx_code = self.load_KRX_code()
-        self.new_data = self.get_krx_etf_data(self.krx_code, self.new_date)
+        # # [작업2] 새 데이터
+        # print('[작업2] 새 데이터')
+        # self.krx_code = self.load_KRX_code()
+        # self.new_data = self.get_krx_etf_data(self.krx_code, self.new_date)
 
-        # [작업3] 예전 데이터
-        print('[작업3] 예전 데이터')
-        self.old_data = self.get_krx_etf_data(self.krx_code, self.old_date)
+        # # [작업3] 예전 데이터
+        # print('[작업3] 예전 데이터')
+        # self.old_data = self.get_krx_etf_data(self.krx_code, self.old_date)
 
         # [작업4] 리서치 데이터 업데이트
         print('[작업4] 리서치 데이터 업데이트')
@@ -56,17 +56,17 @@ class Main:
         print('[작업6] ETF 목표가 계산')
         self.etf_target = self.calcurate_etf_target_price(self.research)
 
-        # [작업7] 유사 종목 계산
-        # print('[작업7] 유사 종목 계산')
-        # self.similar = self.compute_similarity()
+        # # [작업7] 유사 종목 계산
+        # # print('[작업7] 유사 종목 계산')
+        # # self.similar = self.compute_similarity()
 
-        # [작업8] ETF 기본 테이블 생성
-        print('[작업8] ETF 기본 테이블 생성')
-        self.etf_base_table = self.make_etf_base_table()
+        # # [작업8] ETF 기본 테이블 생성
+        # print('[작업8] ETF 기본 테이블 생성')
+        # self.etf_base_table = self.make_etf_base_table()
 
-        # [작업9] ETF 종목 세부사항 테이블 생성
-        print('[작업9] ETF 종목 세부사항 테이블 생성')
-        self.etf_deposit_detail = self.make_etf_deposit_detail()
+        # # [작업9] ETF 종목 세부사항 테이블 생성
+        # print('[작업9] ETF 종목 세부사항 테이블 생성')
+        # self.etf_deposit_detail = self.make_etf_deposit_detail()
 
         # [작업10] 재무제표 데이터
         # last_quarter = self.now - pd.offsets.QuarterEnd(1)
@@ -273,7 +273,7 @@ class Main:
         _last_nid = max(nid_list)
         _start_nid = str(int(_last_nid) + 1)
 
-        _start_nid = '77604'
+        _start_nid = '74706'
         _recent_nid = self.find_recent_nid()
 
         new_research = pd.DataFrame([])
