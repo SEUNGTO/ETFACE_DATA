@@ -18,7 +18,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy import String, Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
-
+from sqlalchemy.exc import SQLAlchemyError
 
 class Main:
     def __init__(self):
@@ -265,6 +265,7 @@ class Main:
 
     # 작업4 리서치 데이터 업데이트
     def update_research(self):
+
         research = self.load_research()
         research = self.clear_old_research(research, 180)
 
@@ -293,9 +294,13 @@ class Main:
 
         research = pd.concat([research, new_research])
         research = research.reset_index(drop=True)
-
+    
         # DB 업데이트
-        research.to_sql('research', self.engine, if_exists='replace', index=False)
+        try :
+            research.to_sql('research', self.engine, if_exists='replace', index=False)
+        except SQLAlchemyError as e:
+            self.engine.rollback()
+            print(f"Error occurred: {e}")
 
         return research
 
