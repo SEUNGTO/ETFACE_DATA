@@ -1,12 +1,9 @@
-import pdb
 import pandas as pd
 import requests
 import zipfile
 from xml.etree.ElementTree import parse
 from io import BytesIO
-import time
 import os
-from tqdm import tqdm
 
 def dart_codeListing():
     """
@@ -207,7 +204,7 @@ if __name__ == '__main__' :
     data = pd.DataFrame({})
     error_list = []
 
-    for CORP_CODE in tqdm(corp_code_list) :
+    for CORP_CODE in corp_code_list :
         try : 
 
             tmp = fetch_finance_account(CORP_CODE, YEAR, REPRT_CODE, 'CFS')
