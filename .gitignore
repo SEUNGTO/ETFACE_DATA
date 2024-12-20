@@ -2,6 +2,7 @@
 key
 Wallet_appdb.zip
 
+
 # local files
 *.txt
 *.xlsx
@@ -15,5 +16,5 @@ Wallet_appdb.zip
 # Dart files
 corpCode/*
 
-
-make_fs.py
+# Cache files
+*/__pycache__/*

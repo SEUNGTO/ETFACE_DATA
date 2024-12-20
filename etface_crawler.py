@@ -57,8 +57,8 @@ class Main:
         self.etf_target = self.calcurate_etf_target_price(self.research)
 
         # [작업7] 유사 종목 계산
-        # print('[작업7] 유사 종목 계산')
-        # self.similar = self.compute_similarity()
+        print('[작업7] 유사 종목 계산')
+        self.similar = self.compute_similarity()
 
         # [작업8] ETF 기본 테이블 생성
         print('[작업8] ETF 기본 테이블 생성')
