@@ -9,6 +9,7 @@ from config.config import *
 
 if __name__ == '__main__' :
  
+    # DB 엔진 생성
     engine = create_db_engine()
 
     # [작업1] 코드 업데이트

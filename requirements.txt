@@ -1,3 +1,5 @@
+beautifulsoup4==4.12.3
+bs4==0.0.2
 cachetools==5.5.0
 certifi==2024.12.14
 cffi==1.17.1
@@ -31,6 +33,7 @@ requests==2.32.3
 requests-file==2.1.0
 rsa==4.9
 six==1.17.0
+soupsieve==2.6
 SQLAlchemy==2.0.36
 tenacity==9.0.0
 tqdm==4.67.1
