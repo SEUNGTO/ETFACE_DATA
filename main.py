@@ -1,10 +1,10 @@
-from data_modules.database import *
-from data_modules.profile import *
-from data_modules.research import *
-from data_modules.krx import *
-from data_modules.etf import *
-from data_modules.dart import *
-from analysis_modules.analysis import *
+from modules_data.database import *
+from modules_data.profile import *
+from modules_data.research import *
+from modules_data.krx import *
+from modules_data.etf import *
+from modules_data.dart import *
+from modules_analysis.analysis import *
 from config.config import *
 
 if __name__ == '__main__' :

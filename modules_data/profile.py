@@ -2,7 +2,7 @@ import FinanceDataReader as fdr
 import pandas as pd
 import requests
 import io
-from data_modules.krx import *
+from modules_data.krx import *
 
 
 def update_code_list(engine):

@@ -13,12 +13,3 @@ old_date : 오늘로부터 7일 전(yyyy-mm-dd)
 now = datetime.now(tz)
 new_date = now.strftime('%Y%m%d')
 old_date = (now - timedelta(days=7)).strftime('%Y%m%d')
-
-
-
-"""
-        python -m pip install flake8 requests pandas google google-cloud-storage oracledb sqlalchemy 
-        python -m pip install finance-datareader plotly
-        python -m pip install bs4
-
-"""
