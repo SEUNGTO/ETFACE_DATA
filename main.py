@@ -16,7 +16,6 @@ if __name__ == '__main__' :
     # [작업1] 기본 정보 업데이트
     print('[작업1] 기본 정보 업데이트')
     update_basic_information(engine)
-    
 
     # [작업2] 이전 일자 ETF 포트폴리오
     print('[작업2] 이전 일자 ETF 포트폴리오')

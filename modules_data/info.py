@@ -6,16 +6,26 @@ from modules_data.database import *
 from sqlalchemy import String, Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 
-import pdb
-
 def update_basic_information(engine) :
     stock = update_stock_profile(engine)
     etf = update_etf_profile(engine)
     dart = fetch_dart_code()
 
-    pdb.set_trace()
+    stock = stock[['표준코드', '단축코드']]
+    etf = etf[['표준코드', '단축코드']]
+    krx = pd.concat([stock, etf])
+    krx = krx.rename(columns = {'표준코드' : 'krx_code', '단축코드' : 'code'})
     
-    # 1. 종목코드 리스트 업데이트
+    dart = dart.drop('정식명칭', axis = 1)
+    dart = dart.rename(columns = {'고유번호' : 'dart_code', '종목코드' : 'code'})
+
+    data = krx.set_index('code').join(dart.set_index('code'), how = 'left')
+    data.reset_index(inplace = True)
+    
+    # 1. 전체 코드 테이블 생성
+    data.to_sql('code_table', con = engine, if_exists='replace')
+    
+    # 2. 종목 코드 업데이트
     update_code_list(engine)
 
 
