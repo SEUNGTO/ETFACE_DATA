@@ -9,7 +9,7 @@ from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 
 def update_krx_etf_data(date, table_name, engine):
 
-    codelist = fetch_krx_code()
+    codelist = fetch_krx_etf_code()
     
     for i, (isuCd, code, name) in enumerate(zip(codelist['표준코드'], codelist['단축코드'], codelist['한글종목약명'])):
 
@@ -43,7 +43,7 @@ def update_krx_etf_data(date, table_name, engine):
 
     return data
 
-def fetch_krx_code():
+def fetch_krx_etf_code():
 
     # ETFACE v1.0 : 국내 주식시장만 취급
     # KRX에서 크롤링할 때만 사용함
