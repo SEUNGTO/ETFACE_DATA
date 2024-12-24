@@ -1,53 +1,52 @@
+import re
+import os
+import time
+import zipfile
 import pandas as pd
 import requests
-import zipfile
-from xml.etree.ElementTree import parse
 from io import BytesIO
-import os
+from xml.etree.ElementTree import parse
+from dateutil.relativedelta import relativedelta
+from config.config import *
 
+def update_finance_base_table(engine) :
 
-def create_finance_table(engine) :
-    dart_code_list = fetch_filtered_dart_code()
-    corp_code_list = dart_code_list['고유번호'].to_list()
+    code_list = read_dart_code(engine)
+    data = pd.DataFrame()
+    tmp = pd.DataFrame()
 
-    YEAR = '2023'
-    REPRT_CODE = '11011'
+    for idx, CORP_CODE in enumerate(code_list) :
+        time.sleep(0.7)
 
-    data = pd.DataFrame({})
-    error_list = []
-
-    for CORP_CODE in corp_code_list :
-
+        print(idx, CORP_CODE, end = " ")
         try : 
-            tmp = fetch_finance_account(CORP_CODE, YEAR, REPRT_CODE, 'CFS')
-            if tmp is not None :
-                # 연결재무제표 데이터를 받은 경우
-                tmp['fs_div'] = 'CFS'
-                bs = filter_bs_account(tmp)
-                pl = filter_pl_account(tmp)
-                tmp = pd.concat([bs, pl])
-                data = pd.concat([data, tmp])
+            YEAR, REPRT_CODE = get_recent_report(CORP_CODE, now)
 
-            else : 
-                tmp = fetch_finance_account(CORP_CODE, YEAR, REPRT_CODE, 'OFS')
-                if tmp is not None :
-                    # 개별재무제표 데이터를 받은 경우
-                    tmp['fs_div'] = 'OFS'
-                    bs = filter_bs_account(tmp)
-                    pl = filter_pl_account(tmp)
-                    tmp = pd.concat([bs, pl])
+            if YEAR is not None : 
+                time.sleep(0.7)
+                tmp = fetch_finance_account(CORP_CODE, YEAR, REPRT_CODE, 'CFS')
+                if not tmp.empty :
+                    tmp['fs_div'] = 'CFS'
                     data = pd.concat([data, tmp])
+                else :
+                    tmp = fetch_finance_account(CORP_CODE, YEAR, REPRT_CODE, 'OFS')
+                    if not tmp.empty :
+                        # 개별재무제표 데이터를 받은 경우
+                        tmp['fs_div'] = 'OFS'
+                        data = pd.concat([data, tmp])
+        except :
+            continue
+        finally :
+            print(f"DATA : {data.shape}, TMP : {tmp.shape}")
 
-                else : 
-                    # 연결/개별재무제표 데이터가 모두 없는 경우
-                    error_list.append(f'{CORP_CODE}_EMPTY')
-
-        except : 
-            error_list.append(f'{CORP_CODE}_ERROR')
+    data.to_sql('finance_base', con = engine, if_exists='replace', index = False)
     
-    data.to_sql('finance', con = engine, if_exists='replacae', index = False)
-
     return data
+
+def read_dart_code(engine) : 
+    code_list = pd.read_sql("SELECT * FROM code_table", con = engine)
+    code_list = code_list['dart_code'].dropna()
+    return code_list
 
 
 def fetch_dart_code():
@@ -86,15 +85,6 @@ def fetch_dart_code():
 
     return dart_code_list
 
-
-def fetch_filtered_dart_code() :
-    url = 'https://raw.githubusercontent.com/SEUNGTO/ETFACE_DATA/refs/heads/main/data/etf_fs_target_company.json'
-    dart_code_list = requests.get(url).json()
-    dart_code_list = pd.DataFrame(dart_code_list)
-
-    return dart_code_list
-
-
 def fetch_finance_account(CORP_CODE, YEAR, REPRT_CODE, FS_DIV) :
 
     url = 'https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json'
@@ -106,131 +96,60 @@ def fetch_finance_account(CORP_CODE, YEAR, REPRT_CODE, FS_DIV) :
         'reprt_code' : REPRT_CODE,
         'fs_div' : FS_DIV,
     }
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+        }
 
-    response = requests.get(url, params = params).json()
+    response = requests.get(url, params = params, headers=headers).json()
 
     if response['status'] == '000' : 
         return pd.DataFrame(response['list'])
-
-def filter_bs_account(fs_data) :
-
-    # 자산
-    bs = fs_data['sj_div'] == 'BS'
-
-    # 1. 자산
-    # 1) 자산 총계
-    asset = bs & (
-        (fs_data['account_id'] == 'ifrs-full_Assets') |
-        fs_data['account_id'].str.contains('-표준계정코드 미사용-') & fs_data['account_nm'].str.contains('자산총계')
-        )
-    if len(fs_data[asset]) > 1 :
-        asset = bs & fs_data['account_id'].str.contains('ifrs-full_Assets')
-    
-    df1 = fs_data[asset]
-
-    # 2) 유동자산
-    current_asset = bs & (fs_data['account_id'] == 'ifrs-full_CurrentAssets')
-    df2 = fs_data[current_asset]
-
-    # 3) 비유동자산
-    non_current_asset = bs & (fs_data['account_id'] == 'ifrs-full_NoncurrentAssets')
-    df3 = fs_data[non_current_asset]
-
-    # 4) 현금 및 현금성자산
-    cash = bs & (fs_data['account_id'] == 'ifrs-full_CashAndCashEquivalents')
-    df4 = fs_data[cash]
-
-    # 5) 매출채권
-    rcvb_idx = bs & (
-        fs_data['account_id'].str.contains('ifrs-full_TradeAndOtherCurrentReceivables') |
-        fs_data['account_id'].str.contains('ifrs-full_TradeReceivables') |
-        fs_data['account_id'].str.contains('ifrs-full_CurrentTradeReceivables') |
-        fs_data['account_id'].str.contains('dart_ShortTermTradeReceivable') |
-        fs_data['account_id'].str.contains('-표준계정코드 미사용-') & fs_data['account_nm'].str.contains('매출채권')
-    )
-
-    if len(fs_data[rcvb_idx]) > 1 :
-
-        if 'dart_ShortTermTradeReceivable' in fs_data[rcvb_idx]['account_id'].tolist() :
-            receivable = bs & (fs_data['account_id'] == 'dart_ShortTermTradeReceivable')
-        elif 'ifrs-full_CurrentTradeReceivables' in fs_data[rcvb_idx]['account_id'].tolist() :
-            receivable = bs & (fs_data['account_id'] == 'ifrs-full_CurrentTradeReceivables')
-        elif 'ifrs-full_TradeReceivables' in fs_data[rcvb_idx]['account_id'].tolist() :
-            receivable = bs & (fs_data['account_id'] == 'ifrs-full_TradeReceivables')
-        elif 'ifrs-full_TradeAndOtherCurrentReceivables' in fs_data[rcvb_idx]['account_id'].tolist() :
-            receivable = bs & (fs_data['account_id'] == 'ifrs-full_TradeAndOtherCurrentReceivables')
-        else :
-            idx = fs_data[rcvb_idx]['ord'].astype(int).idxmin()
-            receivable = fs_data.index == idx
-
     else :
-        receivable = rcvb_idx
-    df5 = fs_data[receivable]
+        return pd.DataFrame()
 
-    # 6) 재고자산
-    inventory = bs & (
-        fs_data['account_id'].str.contains('ifrs-full_Inventories') |
-        fs_data['account_id'].str.contains('-표준계정코드 미사용-') & (fs_data['account_nm'] == '재고자산')
-    )
+def get_recent_report(CORP_CODE, now) : 
 
-    if len(fs_data[inventory]) > 1 :
-        inventory = bs & fs_data['account_id'].str.contains('ifrs-full_Inventories')
-
-    df6 = fs_data[inventory]
-
-    # 2. 자본
-    # 1) 자기자본
-    equity = bs & (fs_data['account_id'] == 'ifrs-full_Equity')
-    df7 = fs_data[equity]
-    # 2) 이익잉여금
-    retained_earning = bs & (fs_data['account_id'] == 'ifrs-full_RetainedEarnings')
-    df8 = fs_data[retained_earning]
-
-    # 3. 부채
-    # 1) 부채총계
-    liability = bs & (fs_data['account_id'] == 'ifrs-full_Liabilities')
-    df9 = fs_data[liability]
-    # 2) 유동부채
-    current_liability = bs & (fs_data['account_id'] == 'ifrs-full_CurrentLiabilities')
-    df10 = fs_data[current_liability]
-    # 3) 비유동부채
-    non_current_liability = bs & (fs_data['account_id'] == 'ifrs-full_NoncurrentLiabilities')
-    df11 = fs_data[non_current_liability]
-
-    data = pd.concat([df1, df2, df3, df4, df5, df6, df7, df8, df9, df10, df11])
-    data['account_nm_kor'] = ['자산총계', '유동자산', '비유동자산', '현금', '매출채권', '재고자산', '자본총계', '이익잉여금', '부채총계', '유동부채', '비유동부채']
-
-    return data
-
-def filter_pl_account(fs_data) :
-
-    # 매출액
-    revenue = fs_data['account_id'] == 'ifrs-full_Revenue'
-    df1 = fs_data[revenue]
-    if 'CIS' in df1['sj_div'] :
-        df1 = df1.loc[df1['sj_div'] == 'CIS', :]
-
-    # 영업이익
-    operating_income = (
-        fs_data['account_id'].str.contains('ifrs-full_ProfitLossFromOperatingActivities') |
-        fs_data['account_id'].str.contains('dart_OperatingIncomeLoss')
-    )
-    if len(fs_data[operating_income]) > 1 :
-        operating_income = fs_data['account_id'].str.contains('ifrs-full_ProfitLossFromOperatingActivities')
+    # 1. DART AI 요청
+    bgn_de = (now - relativedelta(month=6)).strftime('%Y%m%d')
+    url = 'https://opendart.fss.or.kr/api/list.json'
+    params = {
+        'crtfc_key': os.environ.get('DART_API_KEY'),
+        'corp_code' : CORP_CODE,
+        'bgn_de' : bgn_de,
+        'pblntf_ty' : 'A',
+    }
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+        }
+    response = requests.get(url, params = params, headers=headers).json()
     
-    df2 = fs_data[operating_income]
-    if 'CIS' in df1['sj_div'] :
-        df2 = df2.loc[df2['sj_div'] == 'CIS', :]
+    # [예외처리] 정상이 아닌 경우 Pass
+    if response['status'] != '000' : 
+        return None, None
 
-    # 당기순이익
-    net_income = (fs_data['sj_div'] == 'CIS') & (
-        fs_data['account_id'] == 'ifrs-full_ProfitLoss'
-        )
-    df3 = fs_data[net_income]
+    # 2. 최근 보고서의 기준년도 추출
+    data = response['list']
+    date = data[0]['report_nm'].strip()
+    YEAR = re.sub('[^0-9]+', "", date)[:4]
 
-    data = pd.concat([df1, df2, df3])
-    data['account_nm_kor'] = ['매출액', '영업이익', '당기순이익']
-    
-    return data
+    # 3. 최근 보고서의 구분번호 추출
+    REPORT_NO = {
+        '1분기' : '11013',
+        '반기' : '11012',
+        '3분기' : '11014',
+        '사업' : '11011',
+    }
 
+    # 3-1. 데이터 전처리 (기재정정 등이 앞에 붙어 있는 경우)
+    # 구분하는 기준 : 6개월 내에 분기, 반기, 사업 중 어느 데이터가 들어와 있는지
+    report_name = [item['report_nm'] for item in data]
+    report_name = [re.sub('\[\D+\]', '', item)[:2] for item in report_name]
+    recent_report = report_name[0]
 
+    if recent_report != '분기' :
+        return YEAR, REPORT_NO[recent_report]
+    else :
+        if "사업" in report_name :
+            return YEAR, REPORT_NO["1분기"]
+        else :
+            return YEAR, REPORT_NO["3분기"]

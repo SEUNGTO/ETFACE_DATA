@@ -1,3 +1,4 @@
+import time
 import FinanceDataReader as fdr
 import pandas as pd
 from modules_data.krx import *
@@ -7,8 +8,8 @@ from sqlalchemy import String, Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 
 def update_basic_information(engine) :
-    stock = update_stock_profile(engine)
-    etf = update_etf_profile(engine)
+    stock = update_krx_stock_info(engine)
+    etf = update_krx_etf_info(engine)
     dart = fetch_dart_code()
 
     stock = stock[['표준코드', '단축코드']]
@@ -22,14 +23,18 @@ def update_basic_information(engine) :
     data = krx.set_index('code').join(dart.set_index('code'), how = 'left')
     data.reset_index(inplace = True)
     
-    # 1. 전체 코드 테이블 생성
+    # 1. 전체 코드 테이블 업데이트
     data.to_sql('code_table', con = engine, if_exists='replace')
     
     # 2. 종목 코드 업데이트
     update_code_list(engine)
 
+    # 3. 회사 기본 정보 업데이트
+    update_dart_company_info(engine)
 
-
+# +---------------------+
+# | 한국거래소(KRX) 정보 |
+# +---------------------+
 def update_code_list(engine):
 
     stocks = fetch_krx_stock_code()
@@ -50,8 +55,7 @@ def update_code_list(engine):
 
     return code_list
 
-
-def update_stock_profile(engine) : 
+def update_krx_stock_info(engine) : 
 
     otp_url = 'http://data.krx.co.kr/comm/fileDn/GenerateOTP/generate.cmd'
     otp_params = {
@@ -74,8 +78,7 @@ def update_stock_profile(engine) :
 
     return data
 
-def update_etf_profile(engine) : 
-
+def update_krx_etf_info(engine) : 
     otp_url = 'http://data.krx.co.kr/comm/fileDn/GenerateOTP/generate.cmd'
     otp_params = {
         'locale': 'ko_KR',
@@ -117,3 +120,58 @@ def update_etf_profile(engine) :
                     })
 
     return data
+
+
+# +----------------------+
+# | 금융감독원(DART) 정보 |
+# +----------------------+
+def update_dart_company_info(engine) :
+    dart_code_list = read_dart_code(engine)
+
+    buffer = []
+    for dart_code in dart_code_list :
+        item = fetch_dart_company_info(dart_code)
+        buffer.append(item)
+        time.sleep(0.3)
+    data = pd.DataFrame(buffer)
+
+    data.drop(['status', 'message'], axis = 1, inplace = True)
+    data.rename(columns = {
+        'corp_code':'고유번호',
+        'corp_name':'정식명칭',
+        'corp_name_eng':'영문명칭',
+        'stock_name':'종목명',
+        'stock_code':'종목코드',
+        'ceo_nm':'대표자명',
+        'corp_cls':'법인구분',
+        'jurir_no':'법인등록번호',
+        'bizr_no':'사업자등록번호',
+        'adres':'주소',
+        'hm_url':'홈페이지',
+        'ir_url':'IR홈페이지',
+        'phn_no':'전화번호',
+        'fax_no':'팩스번호',
+        'induty_code':'업종코드',
+        'est_dt':'설립일',
+        'acc_mt':'결산월',
+        }, inplace = True)
+    
+    data.to_sql('company_info', con = engine, if_exists='replace')
+
+    return data
+
+def read_dart_code(engine) : 
+    code_list = pd.read_sql("SELECT * FROM code_table", con = engine)
+    code_list = code_list['dart_code'].dropna()
+    return code_list
+
+def fetch_dart_company_info(dart_code) :
+    url = 'https://opendart.fss.or.kr/api/company.json'
+    params = {'crtfc_key': os.environ.get('DART_API_KEY'),
+              'corp_code' : dart_code}
+    response = requests.get(url, params=params)
+    data = response.json()
+    if data['status'] == '000' :
+        return response.json()
+    else : 
+        raise AssertionError
