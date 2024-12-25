@@ -166,10 +166,13 @@ def read_dart_code(engine) :
     return code_list
 
 def fetch_dart_company_info(dart_code) :
+    # print(f"fetch_dart_company_info(), {dart_code}", end = " ")
     url = 'https://opendart.fss.or.kr/api/company.json'
     params = {'crtfc_key': os.environ.get('DART_API_KEY'),
               'corp_code' : dart_code}
-    response = requests.get(url, params=params)
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
+    response = requests.get(url, params=params,headers = headers)
+    # print('[DONE)')
     data = response.json()
     if data['status'] == '000' :
         return response.json()
