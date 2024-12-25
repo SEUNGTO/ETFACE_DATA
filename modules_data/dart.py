@@ -56,8 +56,11 @@ def fetch_dart_code():
 
     url = 'https://opendart.fss.or.kr/api/corpCode.xml'
     params = {'crtfc_key': os.environ.get('DART_API_KEY')}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+        }
 
-    response = requests.get(url, params=params).content
+    response = requests.get(url, params=params, headers=headers).content
 
     with zipfile.ZipFile(BytesIO(response)) as z:
         z.extractall('corpCode')
