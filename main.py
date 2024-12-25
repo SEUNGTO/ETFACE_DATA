@@ -30,8 +30,8 @@ if __name__ == '__main__' :
     research = update_research(engine)
 
     # # [작업5] ETF 재무제표 작성
-    # print('[작업5] 재무제표 작성')
-    # update_finance_table(engine)
+    print('[작업5] ETF 재무제표 작성')
+    update_etf_finance(engine)
 
     # [작업6] 목표가 계산
     print('[작업6] 목표가 계산')

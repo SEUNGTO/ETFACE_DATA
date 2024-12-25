@@ -102,23 +102,39 @@ def create_etf_report_table(research, engine):
 # |                           |
 # +---------------------------+
 
-def update_finance_table(engine) :
-    code_list = pd.read_sql("SELECT * FROM tmp_target_code", con = engine)
-    code_list = code_list['고유번호'].to_list()
+def update_etf_finance(engine) :
+    portfolio_query = f"SELECT etf_code, stock_code FROM etf_base_table"
+    portfolio = pd.read_sql(portfolio_query, con = engine)
 
+    etf_list = portfolio['etf_code'].unique()
     data = pd.DataFrame()
 
-    for code in code_list :
-        query = f"""
-        SELECT *
-        FROM finance_base
-        WHERE corp_code = {code}
-        """
-        buffer = pd.read_sql(query, con = engine)
-        bs = filter_bs_account(buffer)
-        pl = filter_pl_account(buffer)
-        
-        data = pd.concat([data, bs, pl])
+    for etf_code in tqdm(etf_list) :
+        buffer = portfolio.loc[portfolio['etf_code'] == etf_code, :]
+
+        stocks = "','".join(buffer['stock_code'].tolist())
+        stocks = "'" + stocks + "'"
+        query = f"SELECT * FROM fs_data WHERE stock_code in ({stocks})" # WHERE stock_code = "{stock_code}"'
+        fs = pd.read_sql(query, con = engine)
+
+        if not fs.empty :
+
+            tmp = fs.groupby('account_name').sum()[['acmount_per_share']].reset_index()
+            tmp.columns = ['acount_name','amount']
+            tmp['etf_code'] = etf_code
+
+            if not tmp.empty : 
+                data = pd.concat([data, tmp], ignore_index=True)
+
+    data.to_sql('etf_finance', con = engine, if_exists = 'replace',
+                dtype = {
+                    'acount_name': String(15),
+                    'etf_code': String(12),
+                    'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                }, index = False)
+
+    return data
+
     
 
 
