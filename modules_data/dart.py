@@ -60,7 +60,7 @@ def fetch_dart_code():
         'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)'
         }
 
-    response = requests.get(url, params=params, headers=headers, verify = False).content
+    response = requests.get(url, params=params, headers=headers).content
 
     with zipfile.ZipFile(BytesIO(response)) as z:
         z.extractall('corpCode')
