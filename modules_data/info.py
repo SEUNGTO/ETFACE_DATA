@@ -132,7 +132,7 @@ def update_dart_company_info(engine) :
     for dart_code in dart_code_list :
         item = fetch_dart_company_info(dart_code)
         buffer.append(item)
-        time.sleep(0.3)
+        time.sleep(0.5)
     data = pd.DataFrame(buffer)
 
     data.drop(['status', 'message'], axis = 1, inplace = True)
