@@ -10,7 +10,7 @@ from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 def update_basic_information(engine) :
     stock = update_krx_stock_info(engine)
     etf = update_krx_etf_info(engine)
-    # dart = fetch_dart_code()
+    dart = fetch_dart_code()
 
     stock = stock[['표준코드', '단축코드']]
     etf = etf[['표준코드', '단축코드']]
