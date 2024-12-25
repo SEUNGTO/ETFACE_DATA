@@ -172,7 +172,7 @@ def fetch_dart_company_info(dart_code) :
     params = {'crtfc_key': os.environ.get('DART_API_KEY'),
               'corp_code' : dart_code}
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
-    response = requests.get(url, params=params,headers = headers)
+    response = requests.get(url, params=params,headers = headers, timeout=10)
     data = response.json()
     if data['status'] == '000' :
         return response.json()
