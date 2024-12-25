@@ -57,7 +57,7 @@ def fetch_dart_code():
     url = 'https://opendart.fss.or.kr/api/corpCode.xml'
     params = {'crtfc_key': os.environ.get('DART_API_KEY')}
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)'
         }
 
     response = requests.get(url, params=params, headers=headers, verify = False).content
