@@ -60,5 +60,5 @@ jobs:
         DART_API_KEY : ${{ secrets.DART_API_KEY }}
 
       run: |
-        python "main_dart.py"
+        # python "main_dart.py"
 

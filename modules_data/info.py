@@ -6,6 +6,7 @@ from modules_data.dart import *
 from modules_data.database import *
 from sqlalchemy import String, Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
+import pdb
 
 def update_basic_information(engine) :
     stock = update_krx_stock_info(engine)
@@ -171,6 +172,8 @@ def fetch_dart_company_info(dart_code) :
               'corp_code' : dart_code}
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
     response = requests.get(url, params=params,headers = headers)
+    print(response.json())
+    # pdb.set_trace()
     data = response.json()
     if data['status'] == '000' :
         return response.json()
