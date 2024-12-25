@@ -9,26 +9,26 @@ from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 import pdb
 
 def update_basic_information(engine) :
-    stock = update_krx_stock_info(engine)
-    etf = update_krx_etf_info(engine)
-    dart = fetch_dart_code()
+    # stock = update_krx_stock_info(engine)
+    # etf = update_krx_etf_info(engine)
+    # dart = fetch_dart_code()
 
-    stock = stock[['표준코드', '단축코드']]
-    etf = etf[['표준코드', '단축코드']]
-    krx = pd.concat([stock, etf])
-    krx = krx.rename(columns = {'표준코드' : 'krx_code', '단축코드' : 'code'})
+    # stock = stock[['표준코드', '단축코드']]
+    # etf = etf[['표준코드', '단축코드']]
+    # krx = pd.concat([stock, etf])
+    # krx = krx.rename(columns = {'표준코드' : 'krx_code', '단축코드' : 'code'})
     
-    dart = dart.drop('정식명칭', axis = 1)
-    dart = dart.rename(columns = {'고유번호' : 'dart_code', '종목코드' : 'code'})
+    # dart = dart.drop('정식명칭', axis = 1)
+    # dart = dart.rename(columns = {'고유번호' : 'dart_code', '종목코드' : 'code'})
 
-    data = krx.set_index('code').join(dart.set_index('code'), how = 'left')
-    data.reset_index(inplace = True)
+    # data = krx.set_index('code').join(dart.set_index('code'), how = 'left')
+    # data.reset_index(inplace = True)
     
-    # 1. 전체 코드 테이블 업데이트
-    data.to_sql('code_table', con = engine, if_exists='replace')
+    # # 1. 전체 코드 테이블 업데이트
+    # data.to_sql('code_table', con = engine, if_exists='replace')
     
-    # 2. 종목 코드 업데이트
-    update_code_list(engine)
+    # # 2. 종목 코드 업데이트
+    # update_code_list(engine)
 
     # 3. 회사 기본 정보 업데이트
     update_dart_company_info(engine)
@@ -127,6 +127,7 @@ def update_krx_etf_info(engine) :
 # | 금융감독원(DART) 정보 |
 # +----------------------+
 def update_dart_company_info(engine) :
+    print("update_dart_company_info() 실행")
     dart_code_list = read_dart_code(engine)
 
     buffer = []
@@ -167,13 +168,14 @@ def read_dart_code(engine) :
     return code_list
 
 def fetch_dart_company_info(dart_code) :
+    print("fetch_dart_company_info()")
     url = 'https://opendart.fss.or.kr/api/company.json'
     params = {'crtfc_key': os.environ.get('DART_API_KEY'),
               'corp_code' : dart_code}
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
+    print("response.get() 직전")
     response = requests.get(url, params=params,headers = headers)
-    print(response.json())
-    # pdb.set_trace()
+    print("response 결과물 : ", response.json())
     data = response.json()
     if data['status'] == '000' :
         return response.json()
