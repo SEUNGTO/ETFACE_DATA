@@ -30,7 +30,7 @@ def update_basic_information(engine) :
     update_code_list(engine)
 
     # 3. 회사 기본 정보 업데이트
-    update_dart_company_info(engine)
+    # update_dart_company_info(engine)
 
 # +---------------------+
 # | 한국거래소(KRX) 정보 |
