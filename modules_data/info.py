@@ -6,32 +6,33 @@ from modules_data.dart import *
 from modules_data.database import *
 from sqlalchemy import String, Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
-from bs4 import BeautifulSoup
 
 def update_basic_information(engine) :
-    # stock = update_krx_stock_info(engine)
-    # etf = update_krx_etf_info(engine)
-    # dart = fetch_dart_code()
+    stock = update_krx_stock_info(engine)
+    etf = update_krx_etf_info(engine)
+    dart = fetch_dart_code()
 
-    # stock = stock[['표준코드', '단축코드']]
-    # etf = etf[['표준코드', '단축코드']]
-    # krx = pd.concat([stock, etf])
-    # krx = krx.rename(columns = {'표준코드' : 'krx_code', '단축코드' : 'code'})
+    stock = stock[['표준코드', '단축코드']]
+    etf = etf[['표준코드', '단축코드']]
+    krx = pd.concat([stock, etf])
+    krx = krx.rename(columns = {'표준코드' : 'krx_code', '단축코드' : 'code'})
     
-    # dart = dart.drop('정식명칭', axis = 1)
-    # dart = dart.rename(columns = {'고유번호' : 'dart_code', '종목코드' : 'code'})
+    dart = dart.drop('정식명칭', axis = 1)
+    dart = dart.rename(columns = {'고유번호' : 'dart_code', '종목코드' : 'code'})
 
-    # data = krx.set_index('code').join(dart.set_index('code'), how = 'left')
-    # data.reset_index(inplace = True)
+    data = krx.set_index('code').join(dart.set_index('code'), how = 'left')
+    data.reset_index(inplace = True)
     
-    # # 1. 전체 코드 테이블 업데이트
-    # data.to_sql('code_table', con = engine, if_exists='replace')
+    # 1. 전체 코드 테이블 업데이트
+    data.to_sql('code_table', con = engine, if_exists='replace')
     
-    # # 2. 종목 코드 업데이트
-    # update_code_list(engine)
+    # 2. 종목 코드 업데이트
+    update_code_list(engine)
 
     # 3. 회사 기본 정보 업데이트
-    update_dart_company_info(engine)
+    # [디버깅 중] 로컬 환경에서는 작동하지만 깃허브 액션에서 작동 안함. 
+    # 5건 정도만 요청이 성공하고, 오류가 생기는데 이유를 모르겠음.
+    # update_dart_company_info(engine)
 
 # +---------------------+
 # | 한국거래소(KRX) 정보 |
@@ -134,7 +135,7 @@ def update_dart_company_info(engine) :
         print(dart_code)
         item = fetch_dart_company_info(dart_code)
         buffer.append(item)
-        time.sleep(1)
+        time.sleep(0.5)
     data = pd.DataFrame(buffer)
 
     data.drop(['status', 'message'], axis = 1, inplace = True)
