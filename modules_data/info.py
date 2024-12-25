@@ -127,14 +127,14 @@ def update_krx_etf_info(engine) :
 # | 금융감독원(DART) 정보 |
 # +----------------------+
 def update_dart_company_info(engine) :
-    print("update_dart_company_info() 실행")
     dart_code_list = read_dart_code(engine)
 
     buffer = []
     for dart_code in dart_code_list :
+        print(dart_code)
         item = fetch_dart_company_info(dart_code)
         buffer.append(item)
-        time.sleep(0.5)
+        time.sleep(1)
     data = pd.DataFrame(buffer)
 
     data.drop(['status', 'message'], axis = 1, inplace = True)
@@ -168,14 +168,11 @@ def read_dart_code(engine) :
     return code_list
 
 def fetch_dart_company_info(dart_code) :
-    print("fetch_dart_company_info()")
     url = 'https://opendart.fss.or.kr/api/company.json'
     params = {'crtfc_key': os.environ.get('DART_API_KEY'),
               'corp_code' : dart_code}
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
-    print("response.get() 직전")
     response = requests.get(url, params=params,headers = headers)
-    print("response 결과물 : ", response.json())
     data = response.json()
     if data['status'] == '000' :
         return response.json()

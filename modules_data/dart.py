@@ -38,7 +38,8 @@ def update_finance_base_table(engine) :
             continue
         finally :
             print(f"DATA : {data.shape}, TMP : {tmp.shape}")
-
+    import pdb
+    pdb.set_trace()
     data.to_sql('finance_base', con = engine, if_exists='replace', index = False)
     
     return data
