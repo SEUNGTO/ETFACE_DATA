@@ -10,17 +10,18 @@ from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 def update_basic_information(engine) :
     stock = update_krx_stock_info(engine)
     etf = update_krx_etf_info(engine)
-    dart = fetch_dart_code()
+    # dart = fetch_dart_code()
 
     stock = stock[['표준코드', '단축코드']]
     etf = etf[['표준코드', '단축코드']]
     krx = pd.concat([stock, etf])
     krx = krx.rename(columns = {'표준코드' : 'krx_code', '단축코드' : 'code'})
     
-    dart = dart.drop('정식명칭', axis = 1)
-    dart = dart.rename(columns = {'고유번호' : 'dart_code', '종목코드' : 'code'})
+    # dart = dart.drop('정식명칭', axis = 1)
+    # dart = dart.rename(columns = {'고유번호' : 'dart_code', '종목코드' : 'code'})
 
-    data = krx.set_index('code').join(dart.set_index('code'), how = 'left')
+    # data = krx.set_index('code').join(dart.set_index('code'), how = 'left')
+    data = krx
     data.reset_index(inplace = True)
     
     # 1. 전체 코드 테이블 업데이트
