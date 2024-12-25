@@ -101,9 +101,8 @@ def create_etf_report_table(research, engine):
 # |   ETF 재무제표 데이터      |
 # |                           |
 # +---------------------------+
-
 def update_etf_finance(engine) :
-    portfolio_query = f"SELECT etf_code, stock_code FROM etf_base_table"
+    portfolio_query = f"SELECT etf_code, stock_code, recent_quantity FROM etf_base_table"
     portfolio = pd.read_sql(portfolio_query, con = engine)
 
     etf_list = portfolio['etf_code'].unique()
@@ -118,23 +117,23 @@ def update_etf_finance(engine) :
         fs = pd.read_sql(query, con = engine)
 
         if not fs.empty :
-
-            tmp = fs.groupby('account_name').sum()[['acmount_per_share']].reset_index()
-            tmp.columns = ['acount_name','amount']
+            tmp = fs.set_index('stock_code').join(buffer.set_index('stock_code'))
+            tmp['account_amount'] = tmp['recent_quantity'] * tmp['acmount_per_share']
+            tmp = tmp.reset_index().groupby('account_name').sum()[['account_amount']].reset_index()
+            tmp.columns = ['account_name','amount']
             tmp['etf_code'] = etf_code
 
             if not tmp.empty : 
                 data = pd.concat([data, tmp], ignore_index=True)
-
+        
     data.to_sql('etf_finance', con = engine, if_exists = 'replace',
                 dtype = {
                     'acount_name': String(15),
                     'etf_code': String(12),
                     'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                 }, index = False)
-
+    
     return data
-
     
 
 
