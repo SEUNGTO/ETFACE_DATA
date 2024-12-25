@@ -6,7 +6,7 @@ from modules_data.dart import *
 from modules_data.database import *
 from sqlalchemy import String, Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
-import pdb
+from bs4 import BeautifulSoup
 
 def update_basic_information(engine) :
     # stock = update_krx_stock_info(engine)
@@ -168,13 +168,45 @@ def read_dart_code(engine) :
     return code_list
 
 def fetch_dart_company_info(dart_code) :
-    url = 'https://opendart.fss.or.kr/api/company.json'
+    # url = 'https://opendart.fss.or.kr/api/company.json'
+    # params = {'crtfc_key': os.environ.get('DART_API_KEY'),
+    #           'corp_code' : dart_code}
+    # headers = {
+    #     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+    #     }
+    # response = requests.get(url, params = params, headers = headers)
+    # data = response.json()
+
+    url = 'https://opendart.fss.or.kr/api/company.xml'
     params = {'crtfc_key': os.environ.get('DART_API_KEY'),
               'corp_code' : dart_code}
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
-    response = requests.get(url, params=params,headers = headers, timeout=10)
-    data = response.json()
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+        }
+    response = requests.get(url, params = params, headers = headers)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    data = {
+        'status' : soup.find('status').text,
+        'message' : soup.find('message').text,
+        'corp_code': soup.find('corp_code').text,
+        'corp_name':soup.find('corp_name').text,
+        'corp_name_eng':soup.find('corp_name_eng').text,
+        'stock_name':soup.find('stock_name').text,
+        'stock_code':soup.find('stock_code').text,
+        'ceo_nm':soup.find('ceo_nm').text,
+        'corp_cls':soup.find('corp_cls').text,
+        'jurir_no':soup.find('jurir_no').text,
+        'bizr_no':soup.find('bizr_no').text,
+        'adres':soup.find('adres').text,
+        'hm_url':soup.find('hm_url').text,
+        'ir_url':soup.find('ir_url').text,
+        'phn_no':soup.find('phn_no').text,
+        'fax_no':soup.find('fax_no').text,
+        'induty_code':soup.find('induty_code').text,
+        'est_dt':soup.find('est_dt').text,
+        'acc_mt':soup.find('acc_mt').text,
+        }
     if data['status'] == '000' :
-        return response.json()
+        return data
     else : 
         raise AssertionError
