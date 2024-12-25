@@ -109,7 +109,7 @@ def update_etf_finance(engine) :
     etf_list = portfolio['etf_code'].unique()
     data = pd.DataFrame()
 
-    for etf_code in tqdm(etf_list) :
+    for etf_code in etf_list :
         buffer = portfolio.loc[portfolio['etf_code'] == etf_code, :]
 
         stocks = "','".join(buffer['stock_code'].tolist())
