@@ -120,7 +120,7 @@ def update_etf_finance(engine) :
             tmp = fs.set_index('stock_code').join(buffer.set_index('stock_code'))
             tmp['account_amount'] = tmp['recent_quantity'] * tmp['acmount_per_share']
             tmp = tmp.reset_index().groupby('account_name').sum()[['account_amount']].reset_index()
-            tmp.columns = ['account_name','amount']
+            tmp.columns = ['acount_name','amount']
             tmp['etf_code'] = etf_code
 
             if not tmp.empty : 
