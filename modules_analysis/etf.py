@@ -113,7 +113,7 @@ def update_etf_finance(engine) :
 
         stocks = "','".join(buffer['stock_code'].tolist())
         stocks = "'" + stocks + "'"
-        query = f"SELECT * FROM fs_data WHERE stock_code in ({stocks})" # WHERE stock_code = "{stock_code}"'
+        query = f"SELECT * FROM fs_data WHERE stock_code in ({stocks})"
         fs = pd.read_sql(query, con = engine)
 
         if not fs.empty :
