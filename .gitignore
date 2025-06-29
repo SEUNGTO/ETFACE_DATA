@@ -17,3 +17,6 @@ corpCode/*
 
 # Cache files
 */__pycache__/*
+
+# some task
+playground.py

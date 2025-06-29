@@ -9,6 +9,19 @@ from xml.etree.ElementTree import parse
 from dateutil.relativedelta import relativedelta
 from config.config import *
 
+
+def prevent_ban(fn) : 
+    def wait(*args, **kwargs) :
+        a = time.time()
+        result = fn(*args, **kwargs)
+        b = time.time() - a
+        time.sleep(max(60/1000 - b, 0))
+
+        return result
+
+    return wait
+
+@prevent_ban
 def update_finance_base_table(engine) :
 
     code_list = read_dart_code(engine)
@@ -16,7 +29,6 @@ def update_finance_base_table(engine) :
     tmp = pd.DataFrame()
 
     for idx, CORP_CODE in enumerate(code_list) :
-        time.sleep(0.7)
 
         print(idx, CORP_CODE, end = " ")
         try : 
@@ -38,8 +50,6 @@ def update_finance_base_table(engine) :
             continue
         finally :
             print(f"DATA : {data.shape}, TMP : {tmp.shape}")
-    import pdb
-    pdb.set_trace()
     data.to_sql('finance_base', con = engine, if_exists='replace', index = False)
     
     return data
@@ -49,7 +59,7 @@ def read_dart_code(engine) :
     code_list = code_list['dart_code'].dropna()
     return code_list
 
-
+@prevent_ban
 def fetch_dart_code():
     """
     매일 돌아가면서 DART에서 코드를 리스팅할 함수
@@ -89,6 +99,7 @@ def fetch_dart_code():
 
     return dart_code_list
 
+@prevent_ban
 def fetch_finance_account(CORP_CODE, YEAR, REPRT_CODE, FS_DIV) :
 
     url = 'https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json'
@@ -111,6 +122,7 @@ def fetch_finance_account(CORP_CODE, YEAR, REPRT_CODE, FS_DIV) :
     else :
         return pd.DataFrame()
 
+@prevent_ban
 def get_recent_report(CORP_CODE, now) : 
 
     # 1. DART AI 요청
