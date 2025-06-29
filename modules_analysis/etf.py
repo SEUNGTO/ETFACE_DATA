@@ -128,7 +128,7 @@ def update_etf_finance(engine) :
         
     data.to_sql('etf_finance', con = engine, if_exists = 'replace',
                 dtype = {
-                    'acount_name': String(15),
+                    'acount_name': String(20),
                     'etf_code': String(12),
                     'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                 }, index = False)
