@@ -1,290 +1,406 @@
 #%%
-import pdb
 import re
-import requests
+import os
+import time
 import pandas as pd
+import requests
 from tqdm import tqdm
-from modules_data.database import *
-from dateutil.relativedelta import relativedelta
 from config.config import *
-from sqlalchemy import String
+from modules_data.database import *
+from sqlalchemy import String, Float
+from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 
-#%%
-# 2. Dart 코드 불러오기
-def read_code_table(engine) : 
-    code_list = pd.read_sql("SELECT dart_code FROM code_table", con = engine)
-    code_list = code_list.dropna()
-    return code_list
+def prevent_ban(fn) : 
+    def wait(*args, **kwargs) :
+        a = time.time()
+        result = fn(*args, **kwargs)
+        b = time.time() - a
+        time.sleep(max(60/1000 - b, 0))
 
-# 3. Dart 기업정보 업데이트
-def fetch_dart_company_info(CORP_CODE) :
-    url = 'https://opendart.fss.or.kr/api/company.json' # 공시정보 > 기업개황
-    params = {
-        'crtfc_key' : os.getenv('DART_API_KEY'),
-        'corp_code' : CORP_CODE,
-    }
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-        }
-    response = requests.get(url, params=params, headers=headers)
-    buffer = response.json()
-
-    if buffer['status'] == '000' :
-        result = {
-            'dart_code' : buffer.get('corp_code',''),       # 고유번호
-            'stock_name' : buffer.get('stock_name', ''),    # 종목명
-            'stock_code' : buffer.get('stock_code', ''),    # 종목코드
-            'induty_code' : buffer.get('induty_code', ''), # 업종분류코드
-            'est_dt' : buffer.get('est_dt', ''),    # 설립일
-            'acc_mt' : buffer.get('acc_mt', '')     # 결산월
-        }    
         return result
 
-def update_dart_company_info(engine, corp_code_list) : 
+    return wait
 
-    company_info = pd.read_sql('SELECT * FROM dart_company_info', con = engine)
-    
-    # (1) 기존 Dart 기업정보에는 없으나 업데이트한 코드테이블에는 없는 경우 >> 신규로 추가할 코드
-    new_code = [c for c in corp_code_list['dart_code'] if c not in company_info['dart_code'].tolist()]
-
-    if len(new_code) > 0 :   
-        new_infos = []
-        for CORP_CODE in new_code :
-            buffer = fetch_dart_company_info(CORP_CODE)
-            new_infos.append(buffer)
-        new_infos = pd.DataFrame(new_infos)
-        company_info = pd.concat([company_info, new_infos])
-        
-        # (2) 코드 테이블에만 있는 기업정보만 남김 (코드테이블에 없는 기업정보는 삭제)
-        tt = corp_code_list['dart_code'].tolist()
-        company_info[company_info['dart_code'].isin(tt)]
-        company_info.to_sql('dart_company_info',con = engine, if_exists='replace', index = False)
-
-    return company_info
-
-# 4. 최신 보고서 정보 확인
-def update_recent_report_list(now, freq, engine) :
-
-    bgn_de = (now - relativedelta(days=freq)).strftime('%Y%m%d')
-    
-    result = []
-    update_list = []
-
-    page_no = 1
-
-    while True : 
-
-        url = 'https://opendart.fss.or.kr/api/list.json'
-        params = {
-            'crtfc_key': os.environ.get('DART_API_KEY'),
-            'bgn_de' : bgn_de,
-            'pblntf_ty' : 'A', # 정기공시
-            'last_reprt_at' : 'Y', # 최종보고서 여부
-            'page_no' : page_no,
-            'page_count' : 100,
-        }
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-            }
-        response = requests.get(url, params = params, headers=headers)
-        buffer = response.json()
-        
-        if buffer['status'] == '000' :
-
-            item_list = buffer['list']
-
-            for item in item_list :
-
-                data = {
-                    'dart_code' : item.get('corp_code', ''),
-                    'report_nm' : re.sub("\[.*\]", "", item.get('report_nm', '')),
-                    'rcept_no' : item.get('rcept_no', ''),
-                    'rcept_dt' : item.get('rcept_dt', '')
-                    }
-                
-                # 기존 저장된 보고서인지 확인
-                check_query = f"""
-                SELECT * 
-                FROM dart_recent_report 
-                WHERE dart_code = '{data['dart_code']}' 
-                and report_nm = '{data['report_nm']}'
-                """
-                check = pd.read_sql(check_query, con = engine)
-
-                if check.empty :    # 기존 테이블에 없는 경우(비어있는 경우) > 신규 데이터이므로 result에 추가 / 업데이트 대상에 추가
-                    result.append(data)
-                    update_list.append(data)
-                    continue
-                    
-                elif check['rcept_no'] == data['rcept_no'] : 
-                    # 기존 테이블에 있고, 보고서번호도 같은 경우 > 수정할 필요 없음
-                    continue
-
-                else : 
-                    # 기존 테이블에 있지만, 보고서번호가 다른 경우 > 정정보고서이므로 rcept_no 수정 / 업데이트 대상에 추가
-                    query = f"""
-                    UPDATE dart_recent_report
-                    SET rcept_np = {data['rcept_no']}
-                    """
-                    with engine.begin() as conn :
-                        conn.execute(query)
-
-                    update_list.append(data)
-            
-            if len(item_list) < 100 : # 마지막 페이지인 경우 Break
-                break
-            else :
-                page_no += 1
-
-    # 수집한 결과를 dart_recent_report에 업데이트
-    pd.DataFrame(result).to_sql('dart_recent_report', 
-                         con = engine, 
-                         if_exists='append',
-                         index = False,
-                         dtype = {
-                             'dart_code' : String(8),
-                             'report_nm' : String(30),
-                             'rcept_no' : String(14),
-                             'rcept_dt' : String(8)
-                         })
-
-    return pd.DataFrame(update_list)
-        
-
-# 5. 업데이트 대상 데이터 수집
-def fetch_update_data(CORP_CODE, YEAR, REPORT_CODE, FS_DIV) :
-    url = "https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json"
+@prevent_ban
+def fetch_multi_fs_main_account(CORP_CODE, YEAR, REPRT_CODE) :
+    url = 'https://opendart.fss.or.kr/api/fnlttMultiAcnt.json'
     params = {
         'crtfc_key' : os.getenv('DART_API_KEY'),
         'corp_code' : CORP_CODE,
-        'bsns_year' : YEAR, 
-        'reprt_code' : REPORT_CODE, # 1분기보고서 : 11013, 반기보고서 : 11012, 3분기보고서 : 11014, 사업보고서 : 11011
-        'fs_div' : FS_DIV, # OFS:재무제표, CFS:연결재무제표
+        'bsns_year' : YEAR,
+        'reprt_code' : REPRT_CODE,
     }
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-        }
-    response = requests.get(url, params = params, headers=headers).json()
+    response = requests.get(url, params = params).json()
+    
+    if response['status'] == '000' : 
+        data = response['list']
+        return pd.DataFrame(data)
+    
+    else :
+        return pd.DataFrame()
 
+@prevent_ban    
+def fetch_single_fs_all_account(CORP_CODE, YEAR, REPRT_CODE, FS_DIV) :
+    url = 'https://opendart.fss.or.kr/api/fnlttSinglAcntAll.json'
+    params = {
+        'crtfc_key' : os.getenv('DART_API_KEY'),
+        'corp_code' : CORP_CODE,
+        'bsns_year' : YEAR,
+        'reprt_code' : REPRT_CODE,
+        'fs_div' : FS_DIV, # 'CFS', 'OFS'
+    }
+    response = requests.get(url, params = params).json()
+    
+    if response['status'] == '000' :
+        buffer = response['list']
+        return pd.DataFrame(buffer)
+    
+    else :
+        return pd.DataFrame()
+
+@prevent_ban
+def fetch_number_of_stocks(CORP_CODE, YEAR, REPRT_CODE) :
+    url = 'https://opendart.fss.or.kr/api/stockTotqySttus.json'
+    params = {
+        'crtfc_key' : os.getenv('DART_API_KEY'),
+        'corp_code' : CORP_CODE,
+        'bsns_year' : YEAR,
+        'reprt_code' : REPRT_CODE,
+    }
+    
+    response = requests.get(url, params = params).json()
+    
     if response['status'] == '000' :
 
-        data = response['list']
+        stocks = pd.DataFrame(response['list'])
+        stock = stocks.loc[stocks['se'] == '합계', 'distb_stock_co']
+        stock = stock.values[0]
+        
+        if type(stock) == str :
+            stock = re.sub("\D", "", stock)
+            
+        if len(stock) > 0 :
+            return float(stock)
 
-        pdb.set_trace()
+        else :
+            # 분기에 보고할 의무가 없는 경우 : 전년도 보고서에서 가져오기
+            params['bsns_year'] = str(int(params['bsns_year']) - 1)
+            params['reprt_code'] = '11011'
+            response = requests.get(url, params = params).json()
+            if response['status'] == '000' :
+                stocks = pd.DataFrame(response['list'])
+                stock = stocks.loc[stocks['se'] == '합계', 'distb_stock_co']
+                stock = stock.values[0]
+                if type(stock) == str :
+                    stock = re.sub("\D", "", stock)
+                    if len(stock) > 0 :
+                        return float(stock)
+                    else : 
+                        return None
+    else :
+        return None
+
+def extract_terminal_cash(detail_data) :
+    # +-----------------------------+
+    # |                             |
+    # |   1. 현금 및 현금성자산       |  
+    # |                             |
+    # +-----------------------------+
+
+    # 현금흐름표 추출
+    cash_statement = detail_data[detail_data['sj_div'] == 'CF'] ## 현금흐름표
+
+    # 다음 키워드가 포함된 계정명은 포함
+    inc_con = cash_statement['account_nm'].str.contains('현금')
+
+    # 다음 키워드가 포함된 계정명은 제외 
+    exclude_keyword = [
+        '비현금', '외화', '활동',
+        '흐름', '기초', '따른', 
+        '영업', '투자', 
+        '감소', '증가', '증감', '유출', '유입','변동', '가감',
+        '예정', '매각', '배당', '이자', '환율', '지배력', '주식',
+        '리스부채', '리스', '합병', '차입', '보조금', '종속',
+        '환산', '환산', '결합', '매수', '처분',
+    ]
+    exclude_keywords = "|".join(exclude_keyword)
+    exc_con = ~cash_statement['account_nm'].str.contains(exclude_keywords)
+    cash = cash_statement[inc_con & exc_con]
+
+    # 결과가 여럿인 경우 가장 위의 데이터만 가져옴
+    filter_index = cash.groupby('corp_code')['ord'].idxmin()
+    cash = cash.loc[filter_index]
+    cash['account_nm'] = "현금"
+    
+    cash_out_sample = cash_statement[~cash_statement['corp_code'].isin(cash['corp_code'])]
+    
+    return cash, cash_out_sample
 
 
-    pass
+def extract_inventory(detail_data) : 
+    # +-----------------------------+
+    # |                             |
+    # |   2. 재고자산                |  
+    # |                             |
+    # +-----------------------------+
+    balance_sheet = detail_data[detail_data['sj_div'] == 'BS']
+    inventory = balance_sheet[balance_sheet['account_nm'].str.contains('재고')]
+    inventory.loc[:, 'account_nm'] = inventory['account_nm'].apply(lambda x : re.sub(r"\(.*\)", "", x))
+    inventory.loc[:, 'account_nm'] = inventory['account_nm'].apply(lambda x : re.sub(r"[^ㄱ-ㅎ가-힇]", "", x)) # 숫자 제거
+    inventory.loc[:, 'account_nm'] = inventory['account_nm'].str.replace("총유동재고자산", "재고자산")
+
+    con1 = inventory['account_nm'] == '재고자산'
+    con2 = inventory['account_nm'] == '유동재고자산'
+    inventory = inventory[con1 | con2]
+    inventory['account_nm'] == '재고자산'
+
+    # 여기에 포함되지 않는 경우, 실제로 재고자산을 보고하지 않는 것으로 보임
+    in_sample_index = inventory['corp_code']
+    out_sample_bs = balance_sheet[~balance_sheet['corp_code'].isin(in_sample_index)]
+    inventory_out_sample = out_sample_bs[out_sample_bs['account_id'].str.contains('Inven')]
+
+    return inventory, inventory_out_sample
+
+
+def extract_receivable(detail_data) : 
+    # +-----------------------------+
+    # |                             |
+    # |   3. 매출채권                |  
+    # |                             |
+    # +-----------------------------+
+    balance_sheet = detail_data[detail_data['sj_div'] == 'BS']
+    receivable = balance_sheet[balance_sheet['account_nm'].str.contains('매출채권')]
+
+    # 기초적인 전처리
+    receivable.loc[:, 'account_nm'] = receivable['account_nm'].apply(lambda x : re.sub("[^ㄱ-ㅎ가-힇]", "", x))
+    exclude_keyword = [
+        '장기', '리스', '상각', '외의', '외',
+        '미청구', '초과', '대출', '누계액',
+        '대손', '현재가치', '제외', 
+        '장기', '비유동', '비',
+        ]
+    exclude_keywords = "|".join(exclude_keyword)
+    exc_con = ~receivable['account_nm'].str.contains(exclude_keywords)
+    receivable = receivable[exc_con]
+
+    exclude_id = [
+        'Noncurrent', 'Long',
+    ]
+    exclude_ids = "|".join(exclude_id)
+    receivable = receivable[~receivable['account_id'].str.contains(exclude_ids)]
+
+    # 계정별로 하나만 있는 경우
+    cnt = receivable['corp_code'].value_counts()
+    one = cnt[cnt == 1].index.to_list()
+    rcvb1 = receivable[receivable['corp_code'].isin(one)]
+
+    # 계정별로 2개 이상 있는 경우
+    many = cnt[cnt>1].index.to_list()
+    rcvb2 = receivable[receivable['corp_code'].isin(many)]
+
+    # 계정명 중 매출채권/단기매출채권이 있는 경우 >> 이걸로 뽑기
+    con1 = rcvb2['account_nm'] == '매출채권'
+    con2 = rcvb2['account_nm'] == '단기매출채권'
+    rcvb2_1 = rcvb2[con1 | con2]
+    idx = rcvb2_1.groupby('corp_code')['ord'].idxmin()
+    rcvb2_1 = rcvb2_1.loc[idx]
+
+    # 계정명이 모두 매출채권 및 기타OO채권인 경우 > 먼저 등장한 계정 가져오기
+    rcvb2_2 = rcvb2[~rcvb2['corp_code'].isin(rcvb2_1['corp_code'])]
+    idx = rcvb2_2.groupby('corp_code')['ord'].idxmin()
+    rcvb2_2 = rcvb2_2.loc[idx]
+    receivable = pd.concat([rcvb1, rcvb2_1, rcvb2_2])
+    receivable['account_nm'] = '매출채권'
+
+    # 여기에 포함되지 않는 경우, 실제로 매출채권을 보고하지 않는 것으로 보임
+    in_sample_index = receivable['corp_code']
+    out_sample_bs = balance_sheet[~balance_sheet['corp_code'].isin(in_sample_index)]
+    out_receivable = out_sample_bs[out_sample_bs['account_id'].str.contains('Recei')]
+
+    return receivable, out_receivable
+
+def extract_payable(detail_data) : 
+    # +-----------------------------+
+    # |                             |
+    # |   4. 매입채무                |  
+    # |                             |
+    # +-----------------------------+
+    balance_sheet = detail_data[detail_data['sj_div'] == 'BS']
+    payable = balance_sheet[balance_sheet['account_nm'].str.contains('매입채무')]
+    payable.loc[:, 'account_nm'] = payable['account_nm'].apply(lambda x : re.sub("[^ㄱ-ㅎ가-힇]", "", x))
+
+    # 제외할 키워드
+    exclude_keyword = [
+        '장기', '비유동', '비', '외',
+        ]
+    exclude_keywords = "|".join(exclude_keyword)
+    exc_con = ~payable['account_nm'].str.contains(exclude_keywords)
+    payable = payable[exc_con]
+
+    # 계정명에서 삭제
+    exclude_id = [
+        'Noncurrent', 'Long',
+    ]
+    exclude_ids = "|".join(exclude_id)
+    payable = payable[~payable['account_id'].str.contains(exclude_ids)]
+
+    # 1개인 경우
+    cnt = payable['corp_code'].value_counts()
+    one = cnt[cnt == 1]
+    payable1 = payable[payable['corp_code'].isin(one.index)]
+
+    # 2개 이상인 경우
+    # 매입채무와 단기매입채무가 있는 경우 그대로 가져옴
+    many = cnt[cnt > 1]
+    payable2 = payable[payable['corp_code'].isin(many.index)]
+    con1 = payable2['account_nm'] == '매입채무'
+    con2 = payable2['account_nm'] == '단기매입채무'
+    payable2_1 = payable2[con1 | con2]
+
+    idx = payable2_1.groupby('corp_code')['ord'].idxmin()
+    payable2_1 = payable2_1.loc[idx] # 다만, 매입채무와 단기채무가 모두 있는 경우 먼저 보고된 계정을 가져옴
+
+    # 그 외에는 먼저 report된 경우를 가져옴
+    payable2_2 = payable2[~payable2['corp_code'].isin(payable2_1['corp_code'])]
+    idx = payable2_2.groupby('corp_code')['ord'].idxmin()
+    payable2_2 = payable2_2.loc[idx]
+
+    payable = pd.concat([payable1, payable2_1, payable2_2])
+    payable['account_nm'] = '매입채무'
+
+    in_sample_index = payable['corp_code']
+    out_sample_bs = balance_sheet[~balance_sheet['corp_code'].isin(in_sample_index)]
+    out_payable = out_sample_bs[out_sample_bs['account_id'].str.contains('Paya')]
+    
+    return payable, out_payable
+
 
 if __name__ == '__main__' :
 
-    # # 1. DB 엔진 생성
-    # engine = create_db_engine()
-
+    engine = create_db_engine()
+    code_table = pd.read_sql('SELECT * FROM code_table', con = engine)
+    code_table = code_table.set_index('dart_code')
+    dart_code_list = pd.Series(code_table.index).dropna()
+    dart_code_list = dart_code_list.tolist()
+    
+    # 최신 보고서번호 여부 확인하기
+    report_book = pd.read_sql('SELECT * FROM report_book', con = engine)
+    
 #%%
-
-    # # 2. Dart 코드 불러오기
-    # corp_code_list = read_code_table(engine)
-
-    # # 3. Dart 기업정보 업데이트
-    # company_info = update_dart_company_info(engine, corp_code_list)
-
-    # # 4. 최신 보고서 정보 확인
-    # update_list = update_recent_report_list(now, freq = 90, engine=engine)
-
-    # 5. 업데이트 대상 데이터 수집 (2025. 6. 11.) // 작업환경이 좋지 않아 일단 초안만 작성
-    """
-    'dart_code' : String(8),
-    'report_nm' : String(30),
-    'rcept_no' : String(14),
-    'rcept_dt' : String(8)
-    """
-    # fetch_update_data('00126380', '2024', '11011', 'OFS')
-
-    # XBRL택사노미재무제표양식
+    # +-----------------------------+
+    # |                             |
+    # |      연도말 사업보고서        |  
+    # |                             |
+    # +-----------------------------+
+    # [BS] 유동자산, 비유동자산, 자산총계
+    # [BS] 유동부채, 비유동부채, 부채총계
+    # [BS] 자본금, 이익잉여금, 자본총계
+    # [IS] 매출액, 영업이익, 법인세차감전순이익, 당기순이익, 총포괄손익
     
-    
-    
-    sj_div_list = ['BS1', 'BS2','BS3','BS4', 'CIS1', 'CIS2', 'CIS3', 'CIS4',
-                   ]
-    
-    data = pd.DataFrame()
-    url = 'https://opendart.fss.or.kr/api/xbrlTaxonomy.json'
-    
-    for sj_div in sj_div_list :
-        params = {
-            'crtfc_key' : os.getenv('DART_API_KEY'),
-            'sj_div' : sj_div
-            }
-        response = requests.get(url, params=params).json()
+    # 1분기보고서 : 11013
+    # 반기보고서 : 11012
+    # 3분기보고서 : 11014
+    # 사업보고서 : 11011
+
+    CORP_CODE = '01719105'
+    YEAR = '2024'
+    REPORT_CODE = '11014'
+    REPORT_DATE = '2024-09-30'
+
+    print(f"보고서코드 : {REPORT_CODE} / 기준일자 : {REPORT_DATE}...")    
         
-        if response['status'] == '000' :
-            buffer = pd.DataFrame(response['list'])
-            data = pd.concat([data, buffer])
+    print(f"1. 재무제표 주요 계정 수집 중...")
+    data = fetch_multi_fs_main_account(CORP_CODE, YEAR, REPORT_CODE)   
 
-    data = data.rename(columns = {
-        'sj_div' : '재무제표구분',
-        'account_id' : '계정ID',
-        'account_nm' : '계정명',
-        'bsns_de' : '기준일',
-        'label_kor' : '한글명',
-        'label_eng' : '영문명',
-        'data_tp' :'데이터 유형', 
-        'ifrs_ref' :'IFRS Reference' 	# IFRS Reference ※ 출력예시 K-IFRS 1001 문단 54 (9),K-IFRS 1007 문단 45
-        })
-    data.sort_values(['한글명', '재무제표구분', '계정명', '계정ID']).to_csv('xbrl_code.csv', sep = "\t")
-    #  ※ 데이타 유형설명 
-    # - text block : 제목 
-    # - Text : Text 
-    # - yyyy-mm-dd : Date 
-    # - X : Monetary Value 
-    # - (X): Monetary Value(Negative) 
-    # - X.XX : Decimalized Value 
-    # - Shares : Number of shares (주식 수) 
-    # - For each : 공시된 항목이 전후로 반복적으로 공시될 경우 사용 
-    # - 공란 : 입력 필요 없음
+    print(f"2. 연결/개별재무제표 선별 중...")
+    if 'CFS' in data['fs_div'].to_list() :
+        data = data[data['fs_div'] == 'CFS']
+    else :
+        pass
 
-
-    accounts = [
-            '현금', '현금성자산', '현금 및 현금성자산', 
-            '재고자산', '기타재고',
-            '매출채권', '매출채권 및 기타유동채권',
-            '매입채무', '매입채무 및 기타유동채무',
-            '유동자산', '기타유동자산', 
-            '유동부채', '기타유동부채', '유동성장기미지급금',
-            '비유동자산', '기타비유동자산', '장기매출채권', '장기매출채권 및 기타비유동채권', 
-            '비유동부채', '기타비유동부채', '장기매입채무', '장기매입채무 및 기타비유동채무'
-            ]
-    tmp = data[data['한글명'].isin(accounts)]
-    tmp.sort_values(['한글명', '재무제표구분']).to_csv('계정명.csv', sep = "\t", index = False)
-    # 유동자산, 비유동자산, 유동부채, 비유동부채는 유동/비유동법에서만 출현
-    # 유동성배열법은 금융회사들이 주로 채택
-    # 일단, 데이터를 다 받자.
-
-    pdb.set_trace()
-
-
-    """
-    ### 단순합산하면 될지는 따져봐야 함
-    ### 기업마다 매입채무만 보고하거나, 매입채무 및 기타유동채무만 보고하거나 한다면 깔끔하겠지만, 그렇지 않은 경우를 따져보아야 함
-    ### 특히 유동자산/부채의 경우, 유동자산/부채가 현금, 재고자산 등의 총계를 말한다면 기타유동자산/부채는 하위계정일 가능성이 있음
-
-    - 현금, 현금성자산, 현금 및 현금성자산 : ifrs_Cash, ifrs_CashEquivalents, ifrs_CashAndCashEquivalents
-    - 재고자산, 기타재고 : ifrs_Inventories, dart_OtherInventoriesGross
-    - 매출채권, 매출채권 및 기타유동채권 : dart_ShortTermTradeReceivable, ifrs_TradeAndOtherCurrentReceivables
-    - 매입채무, 매입채무 및 기타유동채무 : 
+    print(f"3. 전체재무제표에서 매출채권, 재고자산, 현금, 매입채무 수집 중...")
+    detail_data = fetch_single_fs_all_account(CORP_CODE, YEAR, REPORT_CODE, 'CFS')
+    if detail_data.empty :
+        detail_data= fetch_single_fs_all_account(CORP_CODE, YEAR, REPORT_CODE, 'OFS')
+      
+    cash, cash_out_sample = extract_terminal_cash(detail_data)
+    inventory, inventory_out_sample = extract_inventory(detail_data)
+    receivable, out_receivable = extract_receivable(detail_data)
+    payable, out_payable = extract_payable(detail_data)
     
-    - 유동자산, 기타유동자산: ifrs_CurrentAssets, dart_OtherCurrentAssets
-    - 유동부채, 기타유동부채, 유동성장기미지급금 : ifrs_CurrentLiabilities, dart_OtherCurrentLiabilities
 
-    - 비유동자산, 기타비유동자산, 장기매출채권, 장기매출채권 및 기타비유동채권 : 
-    - 비유동부채, 기타비유동부채, 장기매입채무, 장기매입채무 및 기타비유동채무 : 
+    print(f"4. 유통주식수 수집 중...")
+    stock = fetch_number_of_stocks(CORP_CODE, '2024', REPORT_CODE)
+        
+    print(f"5. 데이터 최종 전처리 중...")
+    ## 개별재무제표에서 얻은 데이터들 정비
+    add_data = pd.concat([cash, inventory, receivable, payable])
+    cols = ['bsns_year', 'corp_code', 'account_nm', 'thstrm_amount']
+    add_data_final = add_data[cols]
+    add_data_final = add_data_final.set_index('corp_code').join(code_table['code']).reset_index()
 
-    """
-
-    """
-    선행되어야 할 작업
-    1) 표준코드미사용 기업의 비율은 얼마나 되는가
-    2) 기업이 계정코드를 어떤 식으로 사용하고 있는가 > 예를 들어 매입채무와 매입채무 및 기타유동채무가 동시에 등장하는 경우는 없는가?
-    3) 
+    renamed_columns = {
+        'bsns_year' : 'year',
+        'corp_code' : 'corp_code',
+        'code' : 'stock_code',
+        'account_nm' : 'account_name',
+        'thstrm_amount' : 'amount',
+    }
+    add_data_final = add_data_final.rename(columns = renamed_columns)
+    add_data_final['amount'] = add_data_final['amount'].str.replace(",", "")
     
-    """
+    ## 다중재무제표로부터 얻은 데이터들 정비
+    cols = ['bsns_year', 'corp_code', 'stock_code', 'account_nm', 'thstrm_amount']
+    final_data = data[cols]
+    renamed_columns = {
+        'bsns_year' : 'year',
+        'corp_code' : 'corp_code',
+        'stock_code' : 'stock_code',
+        'account_nm' : 'account_name',
+        'thstrm_amount' : 'amount',
+    }
+    final_data = final_data.rename(columns = renamed_columns)
+    final_data['amount'] = final_data['amount'].str.replace(",", "")
+
+
+    final_data = pd.concat([final_data, add_data_final])
+    final_data['amount'] = [0 if v == '-' else float(v) for v in final_data['amount']]
+    final_data['report_date'] = REPORT_DATE
+    final_data['stocks'] = stock
+    final_data = final_data.dropna()
+    final_data['amount_per_share'] = final_data['amount'] / final_data['stocks']
+   
+
+    ## 데이터 최종 병합 및 전처리
+    final_data = final_data.drop_duplicates()
+
+    # 저장 전 속성 변경
+    final_data['year'] = final_data['year'].astype(str)
+    final_data['report_date'] = final_data['report_date'].astype(str)
+    final_data['stock_code'] = final_data['stock_code'].astype(str)
+    final_data['account_name'] = final_data['account_name'].astype(str)
+    final_data['amount_per_share'] = round(final_data['amount_per_share'], 4)
+    
+    
+    cols = ['year', 'report_date', 'stock_code', 'account_name', 'amount', 'stocks', 'amount_per_share']
+    final_data = final_data[cols]
+    
+    
+    # 기재정정인 경우 > 기존 데이터 업데이트
+    
+
+    # 신규 데이터인 경우 >
+    print(f"6. 데이터 업데이트 중...")
+    final_data.to_sql('fs_data', 
+                    con = engine, 
+                    if_exists='append',
+                    index = False,
+                    dtype = {
+                        'year': String(4),
+                        'report_date': String(10),
+                        'stock_code': String(6),
+                        'account_name': String(40),
+                        'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                        'stocks': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                        'amount_per_share': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                    })

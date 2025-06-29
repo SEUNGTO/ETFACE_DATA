@@ -19,8 +19,6 @@
 
 """
 
-#%%
-import pdb
 import re
 import os
 import time
@@ -82,6 +80,8 @@ def fetch_single_fs_all_account(CORP_CODE, YEAR, REPRT_CODE, FS_DIV) :
 
 @prevent_ban
 def fetch_number_of_stocks(CORP_CODE, YEAR, REPRT_CODE) :
+    time.sleep(60/1000)
+
     url = 'https://opendart.fss.or.kr/api/stockTotqySttus.json'
     params = {
         'crtfc_key' : os.getenv('DART_API_KEY'),
@@ -100,11 +100,26 @@ def fetch_number_of_stocks(CORP_CODE, YEAR, REPRT_CODE) :
         
         if type(stock) == str :
             stock = re.sub("\D", "", stock)
+            
+        if len(stock) > 0 :
+            return float(stock)
 
-        return float(stock)
-    
+        else :
+            # 분기에 보고할 의무가 없는 경우 : 전년도 보고서에서 가져오기
+            params['bsns_year'] = str(int(params['bsns_year']) - 1)
+            params['reprt_code'] = '11011'
+            response = requests.get(url, params = params).json()
+            if response['status'] == '000' :
+                stocks = pd.DataFrame(response['list'])
+                stock = stocks.loc[stocks['se'] == '합계', 'distb_stock_co']
+                stock = stock.values[0]
+                if type(stock) == str :
+                    stock = re.sub("\D", "", stock)
+                    if len(stock) > 0 :
+                        return float(stock)
+                    else : 
+                        return None
     else :
-
         return None
 
 def extract_terminal_cash(detail_data) :
@@ -300,9 +315,16 @@ if __name__ == '__main__' :
     # [BS] 자본금, 이익잉여금, 자본총계
     # [IS] 매출액, 영업이익, 법인세차감전순이익, 당기순이익, 총포괄손익
     
-    REPORT_CODE = '11011'
-    REPORT_DATE = '2024-12-31'
-    
+    # 1분기보고서 : 11013
+    # 반기보고서 : 11012
+    # 3분기보고서 : 11014
+    # 사업보고서 : 11011
+
+    REPORT_CODE = '11014'
+    REPORT_DATE = '2024-09-30'
+
+    print(f"보고서코드 : {REPORT_CODE} / 기준일자 : {REPORT_DATE}...")    
+
     print(f"1. 다중재무제표 수집 중...")
     interval = 5
     data = pd.DataFrame()
@@ -317,6 +339,8 @@ if __name__ == '__main__' :
         # rcept_no가 있으니, 업데이트가 가능함
 
     # 연결재무제표, 개별재무제표가 모두 있다면 > 연결재무제표만 선택
+    print()
+    print(f"2. 연결/개별재무제표 선별 중...")
     df = pd.DataFrame()
     for corp_code in data['corp_code'].drop_duplicates() :
         buffer = data[data['corp_code'] == corp_code]
@@ -324,9 +348,9 @@ if __name__ == '__main__' :
             buffer = buffer[buffer['fs_div'] == 'CFS']
         df = pd.concat([df, buffer])
 
-    # data.to_csv('01_multi_company_account.csv', sep = "\t", index = False)
     
     # 매출채권, 재고자산, 현금
+    print(f"3. 전체재무제표에서 매출채권, 재고자산, 현금, 매입채무 수집 중...")
     corp_code_list = data['corp_code'].drop_duplicates().to_list()
     detail_data = pd.DataFrame()
 
@@ -345,17 +369,20 @@ if __name__ == '__main__' :
     
     
     ## 유통주식수
+    print(f"4. 유통주식수 수집 중...")
     stocks = []
     for CORP_CODE in tqdm(data['corp_code'].drop_duplicates()) :
         stock = fetch_number_of_stocks(CORP_CODE, '2024', REPORT_CODE)
-        buffer = {
-            'corp_code' : CORP_CODE,
-            'stocks' : stock
-            }
-        stocks.append(buffer)
+        if stock : 
+            buffer = {
+                'corp_code' : CORP_CODE,
+                'stocks' : stock
+                }
+            stocks.append(buffer)
+
     stocks = pd.DataFrame(stocks)
     
-    
+    print(f"5. 데이터 최종 전처리 중...")
     ## 개별재무제표에서 얻은 데이터들 정비
     add_data = pd.concat([cash, inventory, receivable, payable])
     cols = ['bsns_year', 'corp_code', 'account_nm', 'thstrm_amount']
@@ -371,13 +398,14 @@ if __name__ == '__main__' :
     }
     add_data_final = add_data_final.rename(columns = renamed_columns)
     add_data_final = add_data_final.set_index('corp_code').join(stocks.set_index('corp_code')).reset_index()
+    add_data_final = add_data_final.dropna()
+    add_data_final['amount'] = [0 if len(v) == 0 else float(v) for v in add_data_final['amount']]
     add_data_final['report_date'] = REPORT_DATE
     add_data_final['amount_per_share'] = add_data_final['amount'] / add_data_final['stocks']
 
     cols = ['year', 'report_date', 'stock_code', 'account_name', 'amount', 'stocks', 'amount_per_share']
     add_data_final = add_data_final[cols]
     
-
     ## 다중재무제표로부터 얻은 데이터들 정비
     cols = ['bsns_year', 'corp_code', 'stock_code', 'account_nm', 'thstrm_amount']
     final_data = df[cols]
@@ -390,10 +418,10 @@ if __name__ == '__main__' :
     }
     final_data = final_data.rename(columns = renamed_columns)
     final_data['amount'] = final_data['amount'].str.replace(",", "")
-    final_data['amount'] = [0 if v == '-' else v for v in final_data['amount']]
-    final_data['amount'] = final_data['amount'].astype(float)
+    final_data['amount'] = [0 if v == '-' else float(v) for v in final_data['amount']]
     final_data['report_date'] = REPORT_DATE
     final_data = final_data.set_index('corp_code').join(stocks.set_index('corp_code')).reset_index()
+    final_data = final_data.dropna()
     final_data['amount_per_share'] = final_data['amount'] / final_data['stocks']
     final_data = final_data.drop('corp_code', axis = 1)
     cols = ['year', 'report_date', 'stock_code', 'account_name', 'amount', 'stocks', 'amount_per_share']
@@ -409,20 +437,20 @@ if __name__ == '__main__' :
     final_data['stock_code'] = final_data['stock_code'].astype(str)
     final_data['account_name'] = final_data['account_name'].astype(str)
     final_data['amount_per_share'] = round(final_data['amount_per_share'], 4)
-
-    final_data.to_sql('fs_data', 
-                    con = engine, 
-                    if_exists='append',
-                    index = False,
-                    dtype = {
-                        'year': String(4),
-                        'report_date': String(10),
-                        'stock_code': String(6),
-                        'account_name': String(40),
-                        'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
-                        'stocks': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
-                        'amount_per_share': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
-                    })
     
+    final_data.to_csv(f'{REPORT_DATE}_{REPORT_CODE}.csv', sep = '\t')
 
-    # detail_data.to_csv('02_single_detail_account.csv', sep = '\t', index = False)
+    # print(f"6. 데이터 업데이트 중...")
+    # final_data.to_sql('fs_data', 
+    #                 con = engine, 
+    #                 if_exists='append',
+    #                 index = False,
+    #                 dtype = {
+    #                     'year': String(4),
+    #                     'report_date': String(10),
+    #                     'stock_code': String(6),
+    #                     'account_name': String(40),
+    #                     'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+    #                     'stocks': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+    #                     'amount_per_share': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+    #                 })
