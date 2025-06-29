@@ -92,16 +92,16 @@ def fetch_research(nid):
         raise ValueError
 
 
-    info = body.find('div', {'class' : re.compile('HeaderResearch_article')})
-    code = info.find('em', {'class' : re.compile('HeaderResearch_code')}).text
-    stock_name = info.find('em', {'class' : re.compile('HeaderResearch_tag')}).text
+    info = body.find('div', {'class' : re.compile('ResearchHeader_article')})
+    code = info.find('em', {'class' : re.compile('ResearchHeader_code')}).text
+    stock_name = info.find('em', {'class' : re.compile('ResearchHeader_tag')}).text
     stock_name = stock_name.replace(code, "")
-    title = info.find('h3',{'class' : re.compile('HeaderResearch_title')}).text
-    researcher = info.find('cite', {'class' : re.compile('HeaderResearch_description')}).text
-    date = info.find('time', {'class' : re.compile('HeaderResearch_description')}).text
+    title = info.find('h3',{'class' : re.compile('ResearchHeader_title')}).text
+    researcher = info.find('cite', {'class' : re.compile('ResearchHeader_description')}).text
+    date = info.find('time', {'class' : re.compile('ResearchHeader_description')}).text
 
     consensus = body.find('div', {'class' : re.compile('ResearchConsensus_article')})
-    consensus = consensus.find_all('span', {'class' : re.compile('ResearchConsensus_text')})
+    consensus = consensus.find_all('div', {'class' : re.compile('ResearchConsensus_text')})
     opinion = consensus[0].text
     target_price = re.sub("\D", "", consensus[1].text)
 
