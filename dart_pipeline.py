@@ -18,7 +18,7 @@
 1개 기업에 대해 하는 모듈로 바꾸어야 할 것으로 보임!
 
 """
-
+#%%
 import re
 import os
 import time
@@ -304,7 +304,7 @@ if __name__ == '__main__' :
     code_table = code_table.set_index('dart_code')
     dart_code_list = pd.Series(code_table.index).dropna()
     dart_code_list = dart_code_list.tolist()
-   
+ 
     # +-----------------------------+
     # |                             |
     # |      연도말 사업보고서        |  
@@ -320,8 +320,9 @@ if __name__ == '__main__' :
     # 3분기보고서 : 11014
     # 사업보고서 : 11011
 
-    REPORT_CODE = '11014'
-    REPORT_DATE = '2024-09-30'
+    REPORT_CODE = '11013'
+    REPORT_DATE = '2025-03-31'
+    YEAR = '2025'
 
     print(f"보고서코드 : {REPORT_CODE} / 기준일자 : {REPORT_DATE}...")    
 
@@ -331,7 +332,7 @@ if __name__ == '__main__' :
     for i in range(int(len(dart_code_list)/interval)) :
         codes = dart_code_list[i*interval:(i+1)*interval]
         code = ",".join(codes)
-        buffer = fetch_multi_fs_main_account(code, '2024', REPORT_CODE)
+        buffer = fetch_multi_fs_main_account(code, YEAR, REPORT_CODE)
         data = pd.concat([data, buffer])
         
         print(f'Step : {i:04d} | data : {data.shape} | buffer : {buffer.shape}', end = "\r")
@@ -355,10 +356,10 @@ if __name__ == '__main__' :
     detail_data = pd.DataFrame()
 
     for CORP_CODE in tqdm(corp_code_list, desc = "Single Detail") :
-        buffer = fetch_single_fs_all_account(CORP_CODE, '2024', REPORT_CODE, 'CFS')
+        buffer = fetch_single_fs_all_account(CORP_CODE, YEAR, REPORT_CODE, 'CFS')
 
         if buffer.empty :
-            buffer = fetch_single_fs_all_account(CORP_CODE, '2024', REPORT_CODE, 'OFS')
+            buffer = fetch_single_fs_all_account(CORP_CODE, YEAR, REPORT_CODE, 'OFS')
  
         detail_data = pd.concat([detail_data, buffer])
         
@@ -372,7 +373,7 @@ if __name__ == '__main__' :
     print(f"4. 유통주식수 수집 중...")
     stocks = []
     for CORP_CODE in tqdm(data['corp_code'].drop_duplicates()) :
-        stock = fetch_number_of_stocks(CORP_CODE, '2024', REPORT_CODE)
+        stock = fetch_number_of_stocks(CORP_CODE, YEAR, REPORT_CODE)
         if stock : 
             buffer = {
                 'corp_code' : CORP_CODE,
@@ -439,18 +440,3 @@ if __name__ == '__main__' :
     final_data['amount_per_share'] = round(final_data['amount_per_share'], 4)
     
     final_data.to_csv(f'{REPORT_DATE}_{REPORT_CODE}.csv', sep = '\t')
-
-    # print(f"6. 데이터 업데이트 중...")
-    # final_data.to_sql('fs_data', 
-    #                 con = engine, 
-    #                 if_exists='append',
-    #                 index = False,
-    #                 dtype = {
-    #                     'year': String(4),
-    #                     'report_date': String(10),
-    #                     'stock_code': String(6),
-    #                     'account_name': String(40),
-    #                     'amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
-    #                     'stocks': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
-    #                     'amount_per_share': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
-    #                 })
