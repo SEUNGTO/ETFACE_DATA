@@ -303,6 +303,7 @@ if __name__ == '__main__' :
     REPORT_CODE = '11011'
     REPORT_DATE = '2024-12-31'
     
+    print(f"1. 다중재무제표 수집 중...")
     interval = 5
     data = pd.DataFrame()
     for i in range(int(len(dart_code_list)/interval)) :
@@ -323,7 +324,7 @@ if __name__ == '__main__' :
             buffer = buffer[buffer['fs_div'] == 'CFS']
         df = pd.concat([df, buffer])
 
-    data.to_csv('01_multi_company_account.csv', sep = "\t", index = False)
+    # data.to_csv('01_multi_company_account.csv', sep = "\t", index = False)
     
     # 매출채권, 재고자산, 현금
     corp_code_list = data['corp_code'].drop_duplicates().to_list()
@@ -424,172 +425,4 @@ if __name__ == '__main__' :
                     })
     
 
-    detail_data.to_csv('02_single_detail_account.csv', sep = '\t', index = False)    
-
-"""
-#%%
-data = pd.read_csv('01_multi_company_account.csv', sep = "\t", dtype = {'corp_code' : str, 'stock_code' : str})
-detail_data = pd.read_csv('02_single_detail_account.csv', sep = "\t", dtype = {'corp_code' : str})
-stocks = pd.read_excel('03_stocks.xlsx', dtype = {'corp_code' : str, 'stocks' : float})
-
-# +-----------------------------+
-# |                             |
-# |   1. 현금 및 현금성자산       |  
-# |                             |
-# +-----------------------------+
-
-# 현금흐름표 추출
-cash_statement = detail_data[detail_data['sj_div'] == 'CF'] ## 현금흐름표
-
-# 다음 키워드가 포함된 계정명은 포함
-inc_con = cash_statement['account_nm'].str.contains('현금')
-
-# 다음 키워드가 포함된 계정명은 제외 
-exclude_keyword = [
-    '비현금', '외화', '활동',
-    '흐름', '기초', '따른', 
-    '영업', '투자', 
-    '감소', '증가', '증감', '유출', '유입','변동', '가감',
-    '예정', '매각', '배당', '이자', '환율', '지배력', '주식',
-    '리스부채', '리스', '합병', '차입', '보조금', '종속',
-    '환산', '환산', '결합', '매수', '처분',
-]
-exclude_keywords = "|".join(exclude_keyword)
-exc_con = ~cash_statement['account_nm'].str.contains(exclude_keywords)
-cash = cash_statement[inc_con & exc_con]
-
-# 결과가 여럿인 경우 가장 위의 데이터만 가져옴
-filter_index = cash.groupby('corp_code')['ord'].idxmin()
-cash = cash.loc[filter_index]
-cash['account_nm'] = "현금"
-
-# 위 로직으로 추출하지 못한 경우 >> 수기로 보정해야 함
-cash_out_sample = cash_statement[~cash_statement['corp_code'].isin(cash['corp_code'])]
-
-
-# +-----------------------------+
-# |                             |
-# |   2. 재고자산                |  
-# |                             |
-# +-----------------------------+
-balance_sheet = detail_data[detail_data['sj_div'] == 'BS']
-inventory = balance_sheet[balance_sheet['account_nm'].str.contains('재고')]
-inventory.loc[:, 'account_nm'] = inventory['account_nm'].apply(lambda x : re.sub(r"\(.*\)", "", x))
-inventory.loc[:, 'account_nm'] = inventory['account_nm'].apply(lambda x : re.sub(r"[^ㄱ-ㅎ가-힇]", "", x)) # 숫자 제거
-inventory.loc[:, 'account_nm'] = inventory['account_nm'].str.replace("총유동재고자산", "재고자산")
-
-con1 = inventory['account_nm'] == '재고자산'
-con2 = inventory['account_nm'] == '유동재고자산'
-inventory = inventory[con1 | con2]   # 2315
-inventory['account_nm'] == '재고자산'
-
-# 여기에 포함되지 않는 경우, 실제로 재고자산을 보고하지 않는 것으로 보임
-in_sample_index = inventory['corp_code']
-out_sample_bs = balance_sheet[~balance_sheet['corp_code'].isin(in_sample_index)]
-out_inventory = out_sample_bs[out_sample_bs['account_id'].str.contains('Inven')]
-
-
-# +-----------------------------+
-# |                             |
-# |   3. 매출채권                |  
-# |                             |
-# +-----------------------------+
-balance_sheet = detail_data[detail_data['sj_div'] == 'BS']
-receivable = balance_sheet[balance_sheet['account_nm'].str.contains('매출채권')]
-
-# 기초적인 전처리
-receivable.loc[:, 'account_nm'] = receivable['account_nm'].apply(lambda x : re.sub("[^ㄱ-ㅎ가-힇]", "", x))
-exclude_keyword = [
-    '장기', '리스', '상각', '외의', '외',
-    '미청구', '초과', '대출', '누계액',
-    '대손', '현재가치', '제외', 
-    '장기', '비유동', '비',
-    ]
-exclude_keywords = "|".join(exclude_keyword)
-exc_con = ~receivable['account_nm'].str.contains(exclude_keywords)
-receivable = receivable[exc_con]
-
-exclude_id = [
-    'Noncurrent', 'Long',
-]
-exclude_ids = "|".join(exclude_id)
-receivable = receivable[~receivable['account_id'].str.contains(exclude_ids)]
-
-# 계정별로 하나만 있는 경우
-cnt = receivable['corp_code'].value_counts()
-one = cnt[cnt == 1].index.to_list()
-rcvb1 = receivable[receivable['corp_code'].isin(one)]
-
-# 계정별로 2개 이상 있는 경우
-many = cnt[cnt>1].index.to_list()
-rcvb2 = receivable[receivable['corp_code'].isin(many)]
-
-# 계정명 중 매출채권/단기매출채권이 있는 경우 >> 이걸로 뽑기
-con1 = rcvb2['account_nm'] == '매출채권'
-con2 = rcvb2['account_nm'] == '단기매출채권'
-rcvb2_1 = rcvb2[con1 | con2]
-idx = rcvb2_1.groupby('corp_code')['ord'].idxmin()
-rcvb2_1 = rcvb2_1.loc[idx]
-
-# 계정명이 모두 매출채권 및 기타OO채권인 경우 > 먼저 등장한 계정 가져오기
-rcvb2_2 = rcvb2[~rcvb2['corp_code'].isin(rcvb2_1['corp_code'])]
-idx = rcvb2_2.groupby('corp_code')['ord'].idxmin()
-rcvb2_2 = rcvb2_2.loc[idx]
-receivable = pd.concat([rcvb1, rcvb2_1, rcvb2_2])
-
-in_sample_index = receivable['corp_code']
-out_sample_bs = balance_sheet[~balance_sheet['corp_code'].isin(in_sample_index)]
-out_receivable = out_sample_bs[out_sample_bs['account_id'].str.contains('Recei')]
-
-# +-----------------------------+
-# |                             |
-# |   4. 매입채무                |  
-# |                             |
-# +-----------------------------+
-balance_sheet = detail_data[detail_data['sj_div'] == 'BS']
-payable = balance_sheet[balance_sheet['account_nm'].str.contains('매입채무')]
-payable.loc[:, 'account_nm'] = payable['account_nm'].apply(lambda x : re.sub("[^ㄱ-ㅎ가-힇]", "", x))
-
-# 제외할 키워드
-exclude_keyword = [
-    '장기', '비유동', '비', '외',
-    ]
-exclude_keywords = "|".join(exclude_keyword)
-exc_con = ~payable['account_nm'].str.contains(exclude_keywords)
-payable = payable[exc_con]
-
-# 계정명에서 삭제
-exclude_id = [
-    'Noncurrent', 'Long',
-]
-exclude_ids = "|".join(exclude_id)
-payable = payable[~payable['account_id'].str.contains(exclude_ids)]
-
-# 1개인 경우
-cnt = payable['corp_code'].value_counts()
-one = cnt[cnt == 1]
-payable1 = payable[payable['corp_code'].isin(one.index)]
-
-# 2개 이상인 경우
-# 매입채무와 단기매입채무가 있는 경우 그대로 가져옴
-many = cnt[cnt > 1]
-payable2 = payable[payable['corp_code'].isin(many.index)]
-con1 = payable2['account_nm'] == '매입채무'
-con2 = payable2['account_nm'] == '단기매입채무'
-payable2_1 = payable2[con1 | con2]
-
-idx = payable2_1.groupby('corp_code')['ord'].idxmin()
-payable2_1 = payable2_1.loc[idx] # 다만, 매입채무와 단기채무가 모두 있는 경우 먼저 보고된 계정을 가져옴
-
-# 그 외에는 먼저 report된 경우를 가져옴
-payable2_2 = payable2[~payable2['corp_code'].isin(payable2_1['corp_code'])]
-idx = payable2_2.groupby('corp_code')['ord'].idxmin()
-payable2_2 = payable2_2.loc[idx]
-
-payable = pd.concat([payable1, payable2_1, payable2_2])
-payable['account_nm'] = '매입채무'
-
-in_sample_index = payable['corp_code']
-out_sample_bs = balance_sheet[~balance_sheet['corp_code'].isin(in_sample_index)]
-out_payable = out_sample_bs[out_sample_bs['account_id'].str.contains('Paya')]
-"""
+    # detail_data.to_csv('02_single_detail_account.csv', sep = '\t', index = False)
