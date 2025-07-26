@@ -322,7 +322,8 @@ if __name__ == '__main__' :
     detail_data = fetch_single_fs_all_account(CORP_CODE, YEAR, REPORT_CODE, 'CFS')
     if detail_data.empty :
         detail_data= fetch_single_fs_all_account(CORP_CODE, YEAR, REPORT_CODE, 'OFS')
-      
+    detail_data = detail_data.reset_index(drop=True)
+
     cash, cash_out_sample = extract_terminal_cash(detail_data)
     inventory, inventory_out_sample = extract_inventory(detail_data)
     receivable, out_receivable = extract_receivable(detail_data)
@@ -362,7 +363,6 @@ if __name__ == '__main__' :
     final_data = final_data.rename(columns = renamed_columns)
     final_data['amount'] = final_data['amount'].str.replace(",", "")
 
-
     final_data = pd.concat([final_data, add_data_final])
     final_data['amount'] = [0 if v == '-' else float(v) for v in final_data['amount']]
     final_data['report_date'] = REPORT_DATE
@@ -380,7 +380,6 @@ if __name__ == '__main__' :
     final_data['stock_code'] = final_data['stock_code'].astype(str)
     final_data['account_name'] = final_data['account_name'].astype(str)
     final_data['amount_per_share'] = round(final_data['amount_per_share'], 4)
-    
     
     cols = ['year', 'report_date', 'stock_code', 'account_name', 'amount', 'stocks', 'amount_per_share']
     final_data = final_data[cols]

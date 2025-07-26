@@ -29,6 +29,8 @@ def create_etf_base_table(engine):
     data = data[['etf_code', 'etf_name', 'stock_code', 'stock_name',
                     'recent_quantity', 'recent_amount', 'recent_ratio',
                     'past_quantity', 'past_amount', 'past_ratio']]
+    data['diff_quantity'] = data['recent_quantity'] - data['past_quantity']
+    data['diff_amount'] = data['recent_amount'] - data['past_amount']
     data['diff_ratio'] = data['recent_ratio'] - data['past_ratio']
 
     data.to_sql('etf_base_table', con = engine, if_exists='replace', index=False,
@@ -43,6 +45,8 @@ def create_etf_base_table(engine):
                     'past_quantity': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                     'past_amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                     'past_ratio': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                    'diff_quantity': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                    'diff_amount': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                     'diff_ratio': Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                 })
 

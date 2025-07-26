@@ -174,7 +174,7 @@ def extract_inventory(detail_data) :
     con1 = inventory['account_nm'] == '재고자산'
     con2 = inventory['account_nm'] == '유동재고자산'
     inventory = inventory[con1 | con2]
-    inventory['account_nm'] == '재고자산'
+    inventory['account_nm'] = '재고자산'
 
     # 여기에 포함되지 않는 경우, 실제로 재고자산을 보고하지 않는 것으로 보임
     in_sample_index = inventory['corp_code']
@@ -231,6 +231,8 @@ def extract_receivable(detail_data) :
     rcvb2_2 = rcvb2[~rcvb2['corp_code'].isin(rcvb2_1['corp_code'])]
     idx = rcvb2_2.groupby('corp_code')['ord'].idxmin()
     rcvb2_2 = rcvb2_2.loc[idx]
+
+    # 모두 합치기
     receivable = pd.concat([rcvb1, rcvb2_1, rcvb2_2])
     receivable['account_nm'] = '매출채권'
 
@@ -363,6 +365,7 @@ if __name__ == '__main__' :
  
         detail_data = pd.concat([detail_data, buffer])
         
+    detail_data = detail_data.reset_index(drop= True)
     cash, cash_out_sample = extract_terminal_cash(detail_data)
     inventory, inventory_out_sample = extract_inventory(detail_data)
     receivable, out_receivable = extract_receivable(detail_data)
@@ -395,7 +398,7 @@ if __name__ == '__main__' :
         'corp_code' : 'corp_code',
         'code' : 'stock_code',
         'account_nm' : 'account_name',
-        'thstrm_amount' : 'amount',
+        'thstrm_amount' : 'amount'
     }
     add_data_final = add_data_final.rename(columns = renamed_columns)
     add_data_final = add_data_final.set_index('corp_code').join(stocks.set_index('corp_code')).reset_index()
