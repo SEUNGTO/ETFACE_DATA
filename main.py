@@ -6,6 +6,7 @@ from modules_data.dart import *
 from modules_analysis.etf import *
 from modules_analysis.price import *
 from modules_analysis.profile import *
+from modules_analysis.research_label import *
 from config.config import *
 
 if __name__ == '__main__' :
@@ -46,4 +47,7 @@ if __name__ == '__main__' :
     # [작업8] ETF 유사도
     print('[작업8] ETF 유사도')
     get_etf_similarity(engine)
-
+    
+    # [작업9] 증권사 리포트 레이블
+    print('[작업9] 증권사 리포트 레이블')
+    get_research_label(engine)
