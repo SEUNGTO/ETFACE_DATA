@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
-from dateutil.relativedelta import relativedelta
 from config import *
+from dateutil.relativedelta import relativedelta
+from sqlalchemy import String, Float
+from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 
 def get_research_label(engine) : 
 
@@ -153,6 +155,20 @@ def get_research_label(engine) :
     research_label = pd.concat([research_label, tmp])
 
 
-    # 최종 저장
+    # 최종 저장    
+    research_label = research_label.set_index('종목코드').join(cnt_report[[0]])
+    research_label = research_label.join(cnt_broker[[0]], rsuffix = 'r')
+    research_label = research_label.reset_index()
+    research_label.columns = ['종목코드', '레이블', '리포트', '증권사']
     research_label = research_label.dropna()
-    research_label.to_sql('research_label', engine, if_exists='replace', index = False)
+
+    research_label.to_sql('research_label', 
+                          engine, 
+                          if_exists='replace', 
+                          index = False,
+                          dtype={
+                                '종목코드': String(6),
+                                '레이블': String(25),
+                                '리포트' :Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                                '증권사' :Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+                            })
