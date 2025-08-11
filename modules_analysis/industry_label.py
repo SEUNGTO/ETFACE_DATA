@@ -1,5 +1,4 @@
 import pandas as pd
-from config import *
 from sqlalchemy import Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
 

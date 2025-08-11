@@ -4,11 +4,13 @@ from modules_data.research import *
 from modules_data.krx import *
 from modules_data.dart import *
 from modules_data.industry import *
+from modules_data.theme import *
 from modules_analysis.etf import *
 from modules_analysis.price import *
 from modules_analysis.profile import *
 from modules_analysis.research_label import *
 from modules_analysis.industry_label import *
+from modules_analysis.theme_label import *
 from config.config import *
 
 if __name__ == '__main__' :
@@ -54,10 +56,19 @@ if __name__ == '__main__' :
     print('[작업9] 증권사 리포트 레이블')
     get_research_label(engine)
 
-    # [작업10] 업종별 레이블
-    print('[작업10] 업종별 레이블')
+    # [작업10] 업종 데이터(WICS)
+    print('[작업10] 업종 데이터(WICS)')
+    get_industry_info(engine)
+
+    # [작업11] 업종별 레이블
+    print('[작업11] 업종별 레이블')
     get_industry_label(engine)
 
-    # [작업11] 업종분류 데이터
-    print('[작업11] 업종분류 데이터')
-    get_industry_info(engine)
+    # [작업12] 테마 데이터(네이버)
+    print('[작업12] 테마 데이터')
+    get_theme_info(engine)
+
+    # [작업13] 테마 데이터(네이버)
+    print('[작업13] 테마별 레이블')
+    get_theme_label(engine)
+
