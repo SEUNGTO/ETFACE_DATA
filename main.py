@@ -4,13 +4,16 @@ from modules_data.research import *
 from modules_data.krx import *
 from modules_data.dart import *
 from modules_data.industry import *
+from modules_data.industry_report import *
 from modules_data.theme import *
+from modules_data.invest_info import *
 from modules_analysis.etf import *
 from modules_analysis.price import *
 from modules_analysis.profile import *
 from modules_analysis.research_label import *
 from modules_analysis.industry_label import *
 from modules_analysis.theme_label import *
+from modules_analysis.etf_label import *
 from config.config import *
 
 if __name__ == '__main__' :
@@ -68,7 +71,18 @@ if __name__ == '__main__' :
     print('[작업12] 테마 데이터')
     get_theme_info(engine)
 
-    # [작업13] 테마 데이터(네이버)
+    # [작업13] 테마 레이블
     print('[작업13] 테마별 레이블')
     get_theme_label(engine)
 
+    # [작업14] ETF 레이블
+    print('[작업14] ETF 레이블')
+    get_etf_label(engine)
+
+    # [작업15] 산업 리포트
+    print('[작업15] 산업 리포트')
+    update_industry_report(engine, 90)
+    
+    # [작업16] 투자정보 리포트
+    print('[작업16] 투자정보 리포트')
+    update_invest_info(engine, 30)
