@@ -1,6 +1,8 @@
 import pandas as pd
 from sqlalchemy import Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
+from config.config import *
+
 
 def get_industry_label(engine) : 
 
@@ -39,7 +41,7 @@ def get_industry_label(engine) :
     industry = industry.set_index('업종코드').join(sentiment.set_index('업종코드'))
     industry = industry.reset_index()
     industry = industry.dropna()
-    industry.to_sql('industry', 
+    industry.to_sql('industry_label',  
                     con = engine, 
                     if_exists='replace', 
                     index = False,
@@ -47,3 +49,16 @@ def get_industry_label(engine) :
                         '점수' : Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                         '업종점수' : Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                     })
+
+    # daily data에 추가
+    industry['날짜'] = now.strftime('%Y-%m-%d')
+    industry.to_sql(
+        'industry_label_daily',
+        con = engine,
+        if_exists='append',
+        index = False,
+        dtype = {
+            '점수' : Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+            '업종점수' : Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+        }
+    )

@@ -1,6 +1,7 @@
 import pandas as pd
 from sqlalchemy import Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
+from config.config import *
 
 
 def get_theme_label(engine) : 
@@ -48,3 +49,16 @@ def get_theme_label(engine) :
                     '점수' : Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                     '테마점수' : Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
                 })
+
+    # daily data에 추가
+    theme['날짜'] = now.strftime('%Y-%m-%d')
+    theme.to_sql(
+        'theme_label_daily',
+        con = engine,
+        if_exists='append',
+        index = False,
+        dtype = {
+            '점수' : Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+            '테마점수' : Float(precision=53).with_variant(ORACLE_FLOAT(binary_precision=126), 'oracle'),
+        }
+    )
