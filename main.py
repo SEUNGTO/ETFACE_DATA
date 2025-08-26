@@ -15,6 +15,7 @@ from modules_analysis.industry_label import *
 from modules_analysis.theme_label import *
 from modules_analysis.etf_label import *
 from config.config import *
+from config.clear_data import *
 
 if __name__ == '__main__' :
  
@@ -86,3 +87,6 @@ if __name__ == '__main__' :
     # [작업16] 투자정보 리포트
     print('[작업16] 투자정보 리포트')
     update_invest_info(engine, 30)
+    
+    # [작업99] 데이터 정리
+    clear_old_data(engine)

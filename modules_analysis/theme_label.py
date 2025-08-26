@@ -1,7 +1,8 @@
 import pandas as pd
 from sqlalchemy import Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
-from config.config import *
+import pytz
+from datetime import datetime
 
 
 def get_theme_label(engine) : 
@@ -18,7 +19,7 @@ def get_theme_label(engine) :
         '증권사의 관심이 늘었어요.' : 0.8,
         '목표가가 상향되었어요.' : 0.9,
         '목표가가 신고가를 경신했어요.' : 1.0,
-        '여러 애널리스트들의 관심을 받고 있어요' : None,
+        '여러 애널리스트들의 관심을 받고 있어요.' : None,
 
         '목표가에 큰 변화는 없어요.' : 0.0,
 
@@ -51,6 +52,9 @@ def get_theme_label(engine) :
                 })
 
     # daily data에 추가
+    tz = pytz.timezone('Asia/Seoul')
+    now = datetime.now(tz)
+    
     theme['날짜'] = now.strftime('%Y-%m-%d')
     theme.to_sql(
         'theme_label_daily',

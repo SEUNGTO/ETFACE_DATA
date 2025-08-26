@@ -1,10 +1,12 @@
 import pandas as pd
 from sqlalchemy import Float
 from sqlalchemy.dialects.oracle import FLOAT as ORACLE_FLOAT
-from config.config import *
+import pytz
+from datetime import datetime
 
 
 def get_industry_label(engine) : 
+       
 
     research_label = pd.read_sql("SELECT * FROM research_label", con = engine)
     wics = pd.read_sql("SELECT * FROM wics", con = engine)
@@ -18,7 +20,7 @@ def get_industry_label(engine) :
         '증권사의 관심이 늘었어요.' : 0.8,
         '목표가가 상향되었어요.' : 0.9,
         '목표가가 신고가를 경신했어요.' : 1.0,
-        '여러 애널리스트들의 관심을 받고 있어요' : None,
+        '여러 애널리스트들의 관심을 받고 있어요.' : None,
 
         '목표가에 큰 변화는 없어요.' : 0.0,
 
@@ -51,6 +53,10 @@ def get_industry_label(engine) :
                     })
 
     # daily data에 추가
+    
+    tz = pytz.timezone('Asia/Seoul')
+    now = datetime.now(tz)
+
     industry['날짜'] = now.strftime('%Y-%m-%d')
     industry.to_sql(
         'industry_label_daily',

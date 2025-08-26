@@ -55,4 +55,5 @@ def get_theme_info(engine) :
         time.sleep(0.5)
 
     theme = pd.DataFrame(theme, columns = ['테마코드', '테마명', '종목코드', '종목명'])
+    theme['테마명'] = theme['테마명'].str.replace("/", ",")
     theme.to_sql('theme', con = engine, if_exists='replace', index = False)

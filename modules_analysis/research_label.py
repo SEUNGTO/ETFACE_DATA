@@ -79,7 +79,7 @@ def get_research_label(engine) :
     cnt_broker = cnt_broker.fillna(0)
     cnt_broker.columns = [i for i in range(6)]
 
-    label = '여러 애널리스트들의 관심을 받고 있어요'
+    label = '여러 애널리스트들의 관심을 받고 있어요.'
     con1 = cnt_broker[0] > 1
     tmp = [[code, label] for code in cnt_broker[con1].index]
     tmp = pd.DataFrame(data = tmp, columns = ['종목코드', '레이블'])
