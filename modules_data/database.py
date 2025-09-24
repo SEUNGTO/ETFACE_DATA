@@ -7,6 +7,7 @@ import oracledb
 
 
 def create_db_engine():
+
     STORAGE_NAME = os.environ.get('STORAGE_NAME')
     WALLET_FILE = os.environ.get('WALLET_FILE')
 

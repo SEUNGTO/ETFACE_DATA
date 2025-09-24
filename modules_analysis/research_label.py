@@ -116,8 +116,8 @@ def get_research_label(engine) :
     opinion = opinion.groupby('종목코드').mean().reset_index()
 
     tmp = [
-        [code, '목표가가 상향되었어요.'] if v > 1/3 else 
-        [code, '목표가가 하향되었어요.'] if v < -1/3 else 
+        [code, '목표가를 올린 증권사가 있어요.'] if v > 1/3 else 
+        [code, '목표가를 내린 증권사가 있어요.'] if v < -1/3 else 
         [code, '목표가에 큰 변화는 없어요.'] for code, v in zip(opinion['종목코드'], opinion['평가'])
         ]
     tmp = pd.DataFrame(data = tmp, columns = ['종목코드', '레이블'])

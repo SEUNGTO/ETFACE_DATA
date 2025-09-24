@@ -20,3 +20,5 @@ corpCode/*
 
 # some task
 playground.py
+maintenance.py
+fix_score.py
