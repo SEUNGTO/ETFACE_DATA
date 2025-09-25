@@ -93,8 +93,6 @@ def fetch_krx_stock_code():
     return data
 
 
-
-
 def fetch_portfolio(isuCd, code, name, date):
     headers = {'Referer': 'http://data.krx.co.kr/contents/MDC/MDI/mdiLoader',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
@@ -126,3 +124,32 @@ def fetch_portfolio(isuCd, code, name, date):
 
     return data
 
+def update_all_stock_information(engine) :
+    
+    headers = {'Referer': 'https://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020201',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'}
+    otp_url = 'https://data.krx.co.kr/comm/fileDn/GenerateOTP/generate.cmd'
+    otp_params = {
+        'locale': 'ko_KR',
+        'mktId' : 'ALL',
+        'share' : '1',
+        'csvxls_isNo' : 'false',
+        'name' : 'fileDown',
+        'url' : 'dbms/MDC/STAT/standard/MDCSTAT01901',
+    }
+
+    otp = requests.post(otp_url, params=otp_params, headers=headers).text
+
+
+
+    down_url = 'http://data.krx.co.kr/comm/fileDn/download_csv/download.cmd'
+    down_params = {'code': otp}
+    response = requests.post(down_url, params=down_params, headers=headers)
+
+    data = pd.read_csv(io.BytesIO(response.content),
+                        encoding='euc-kr',
+                        dtype={'단축코드': str})
+    
+    data.to_sql('stock_profile', if_exists='replace', con = engine, index = False)
+    
+    return data

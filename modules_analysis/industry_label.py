@@ -58,6 +58,7 @@ def get_industry_label(engine) :
     now = datetime.now(tz)
 
     industry['날짜'] = now.strftime('%Y-%m-%d')
+    industry = industry[['업종명', '업종점수', '날짜']].drop_duplicates()
     industry.to_sql(
         'industry_label_daily',
         con = engine,

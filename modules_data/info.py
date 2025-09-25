@@ -33,6 +33,10 @@ def update_basic_information(engine) :
     # [디버깅 중] 로컬 환경에서는 작동하지만 깃허브 액션에서 작동 안함. 
     # 5건 정도만 요청이 성공하고, 오류가 생기는데 이유를 모르겠음.
     # update_dart_company_info(engine)
+    
+    # 4. 상장주식정보 업데이트(KRX)
+    update_all_stock_information(engine)
+    
 
 # +---------------------+
 # | 한국거래소(KRX) 정보 |

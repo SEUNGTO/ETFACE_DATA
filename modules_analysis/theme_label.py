@@ -56,6 +56,7 @@ def get_theme_label(engine) :
     now = datetime.now(tz)
     
     theme['날짜'] = now.strftime('%Y-%m-%d')
+    theme = theme[['테마명', '테마점수', '날짜']].drop_duplicates()
     theme.to_sql(
         'theme_label_daily',
         con = engine,
