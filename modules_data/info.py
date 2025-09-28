@@ -32,7 +32,7 @@ def update_basic_information(engine) :
     # 3. 회사 기본 정보 업데이트
     # [디버깅 중] 로컬 환경에서는 작동하지만 깃허브 액션에서 작동 안함. 
     # 5건 정도만 요청이 성공하고, 오류가 생기는데 이유를 모르겠음.
-    # update_dart_company_info(engine)
+    update_dart_company_info(engine)
     
     # 4. 상장주식정보 업데이트(KRX)
     update_all_stock_information(engine)
@@ -131,15 +131,25 @@ def update_krx_etf_info(engine) :
 # +----------------------+
 # | 금융감독원(DART) 정보 |
 # +----------------------+
+def prevent_ban(fn) : 
+    def wait(*args, **kwargs) :
+        a = time.time()
+        result = fn(*args, **kwargs)
+        b = time.time() - a
+        time.sleep(max(60/1000 - b, 0))
+
+        return result
+
+    return wait
+
+
 def update_dart_company_info(engine) :
     dart_code_list = read_dart_code(engine)
 
     buffer = []
     for dart_code in dart_code_list :
-        print(dart_code)
         item = fetch_dart_company_info(dart_code)
         buffer.append(item)
-        time.sleep(0.5)
     data = pd.DataFrame(buffer)
 
     data.drop(['status', 'message'], axis = 1, inplace = True)
@@ -172,6 +182,7 @@ def read_dart_code(engine) :
     code_list = code_list['dart_code'].dropna()
     return code_list
 
+@prevent_ban
 def fetch_dart_company_info(dart_code) :
     url = 'https://opendart.fss.or.kr/api/company.json'
     params = {'crtfc_key': os.environ.get('DART_API_KEY'),
