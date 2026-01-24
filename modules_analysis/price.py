@@ -35,7 +35,7 @@ def get_etf_target_price(research, engine):
 
     price_data = pd.DataFrame({})
     for code in codeList:
-        tmp = fdr.DataReader(code, start=start, end=end)['Close']
+        tmp = fdr.DataReader(f"YAHOO:{code}.KS", start=start, end=end)['Close']
         tmp.bfill(inplace=True)
         tmp.name = code
         price_data = pd.concat([price_data, tmp], axis=1)
@@ -76,7 +76,7 @@ def get_etf_target_price(research, engine):
                         out_ewm_price = pd.concat([out_ewm_price, stock_mkt_price[stock_code]], axis=1)
 
                     elif stock_code not in stock_mkt_price.columns:
-                        tmp_stock_price = fdr.DataReader(stock_code, start=start, end=end)
+                        tmp_stock_price = fdr.DataReader(f"YAHOO:{stock_code}.KS", start=start, end=end)
                         tmp_stock_price.index = [str(idx)[:10] for idx in tmp_stock_price.index]
                         tmp_stock_price = tmp_stock_price['Close']
                         tmp_stock_price.bfill(inplace=True)

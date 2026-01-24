@@ -6,7 +6,7 @@ cffi==1.17.1
 charset-normalizer==3.4.0
 colorama==0.4.6
 cryptography==44.0.0
-finance-datareader==0.9.94
+finance-datareader==0.9.101
 google-api-core==2.24.0
 google-auth==2.37.0
 google-cloud-core==2.4.1
